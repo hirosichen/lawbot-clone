@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import Markdown from 'react-markdown';
 import {
   Send,
   Copy,
@@ -73,65 +74,72 @@ function ReferenceChips({ references }: { references: ChatReference[] }) {
   );
 }
 
+// Inject citation badges into text nodes
+function injectCitations(text: string): ReactNode[] {
+  const parts = text.split(/(\[(?:法|判)\d+\]|\[\d+\])/g);
+  return parts.map((part, j) => {
+    const match = part.match(/^\[(?:法|判)?(\d+)\]$/);
+    if (match) {
+      return (
+        <span
+          key={j}
+          className="inline-flex items-center justify-center min-w-[1.25rem] h-5 mx-0.5 px-1 text-[10px] font-bold rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 align-middle"
+        >
+          {part.slice(1, -1)}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
 function MessageContent({ content }: { content: string }) {
-  // Render markdown-like content with citation badges
-  const lines = content.split('\n');
-
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
-      {lines.map((line, i) => {
-        if (!line.trim()) return <div key={i} className="h-2" />;
-
-        // Replace citation markers [N] with styled badges
-        const parts = line.split(/(\[\d+\])/g);
-        const rendered = parts.map((part, j) => {
-          const match = part.match(/^\[(\d+)\]$/);
-          if (match) {
-            return (
-              <span
-                key={j}
-                className="inline-flex items-center justify-center w-4.5 h-4.5 mx-0.5 text-[10px] font-bold rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 cursor-pointer hover:bg-indigo-200 dark:hover:bg-indigo-800 align-super transition-colors"
-              >
-                {match[1]}
-              </span>
-            );
-          }
-          return part;
-        });
-
-        // Bold headings
-        if (line.startsWith('**') && line.endsWith('**')) {
-          return (
-            <p key={i} className="font-semibold text-gray-900 dark:text-white mt-3 mb-1">
-              {rendered}
+    <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_hr]:my-3 [&_hr]:border-gray-200 [&_hr]:dark:border-gray-700 [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-300 [&_blockquote]:dark:border-indigo-700 [&_blockquote]:pl-3 [&_blockquote]:text-gray-600 [&_blockquote]:dark:text-gray-400 [&_blockquote]:italic [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5">
+      <Markdown
+        components={{
+          // Inject citation badges into all text
+          p: ({ children }) => (
+            <p className="my-1.5">
+              {typeof children === 'string'
+                ? injectCitations(children)
+                : Array.isArray(children)
+                  ? children.map((child, i) =>
+                      typeof child === 'string' ? <span key={i}>{injectCitations(child)}</span> : child
+                    )
+                  : children}
             </p>
-          );
-        }
-
-        // Numbered items
-        if (/^\d+\.\s/.test(line)) {
-          return (
-            <p key={i} className="ml-4 my-0.5">
-              {rendered}
-            </p>
-          );
-        }
-
-        // Lines starting with - (bullet)
-        if (line.trim().startsWith('- ')) {
-          return (
-            <p key={i} className="ml-6 my-0.5">
-              {rendered}
-            </p>
-          );
-        }
-
-        return (
-          <p key={i} className="my-0.5">
-            {rendered}
-          </p>
-        );
-      })}
+          ),
+          li: ({ children }) => (
+            <li>
+              {typeof children === 'string'
+                ? injectCitations(children)
+                : Array.isArray(children)
+                  ? children.map((child, i) =>
+                      typeof child === 'string' ? <span key={i}>{injectCitations(child)}</span> : child
+                    )
+                  : children}
+            </li>
+          ),
+          strong: ({ children }) => (
+            <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mt-4 mb-2">{children}</h3>
+          ),
+          h2: ({ children }) => (
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mt-5 mb-2">{children}</h2>
+          ),
+          hr: () => <hr className="my-3 border-gray-200 dark:border-gray-700" />,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-3 border-indigo-300 dark:border-indigo-700 pl-3 my-2 text-gray-600 dark:text-gray-400 italic text-sm">
+              {children}
+            </blockquote>
+          ),
+        }}
+      >
+        {content}
+      </Markdown>
     </div>
   );
 }

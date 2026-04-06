@@ -415,57 +415,75 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       { role: 'user' as const, content: message },
     ];
 
-    // Step 3: Call Qwen3-30B-A3B
-    let fullText: string;
-    try {
-      // @ts-expect-error - model ID valid
-      const aiResponse = await env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
-        messages: aiMessages,
-        max_tokens: 2048,
-        temperature: 0.6,
-      });
-
-      const r = aiResponse as Record<string, unknown>;
-      if (typeof r?.response === 'string' && r.response) {
-        fullText = r.response;
-      } else if (Array.isArray(r?.choices)) {
-        fullText = ((r.choices as Array<{ message?: { content?: string } }>)[0]?.message?.content) || '';
-      } else {
-        fullText = '';
-      }
-
-      // Remove thinking blocks
-      fullText = fullText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-
-      if (!fullText) throw new Error('Empty response');
-    } catch (err) {
-      console.error('AI error:', err);
-      // Fallback: format the retrieved data directly
-      if (contextText) {
-        fullText = `**為您檢索到的相關法學資料：**\n\n${contextText}\n\n> ⚠️ AI 分析暫時無法使用，以上為原始搜尋結果供參考。`;
-      } else {
-        fullText = '抱歉，目前無法處理此問題。請使用精準搜尋功能查找相關判決和法條。';
-      }
-    }
-
-    // Step 4: Stream to client
+    // Step 3: Stream from Qwen3-30B-A3B
     const encoder = new TextEncoder();
 
+    // @ts-expect-error - model ID valid
+    const aiStream = await env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
+      messages: aiMessages,
+      stream: true,
+      max_tokens: 2048,
+      temperature: 0.6,
+    });
+
+    // Wrap AI stream: prepend references, append followups
     const stream = new ReadableStream({
       async start(controller) {
-        // References (with links)
+        // Send references first
         controller.enqueue(encoder.encode(
           `data: ${JSON.stringify({ type: 'references', references })}\n\n`
         ));
 
-        // Text chunks (typing effect)
-        for (let i = 0; i < fullText.length; i += 4) {
+        // Pipe through AI SSE stream, re-wrapping each token
+        try {
+          const reader = (aiStream as ReadableStream).getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let insideThink = false;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const payload = line.slice(6).trim();
+              if (payload === '[DONE]') continue;
+
+              try {
+                const parsed = JSON.parse(payload);
+                const token: string = parsed.response ?? '';
+                if (!token) continue;
+
+                // Skip <think>...</think> blocks
+                if (token.includes('<think>')) { insideThink = true; continue; }
+                if (insideThink) {
+                  if (token.includes('</think>')) { insideThink = false; }
+                  continue;
+                }
+
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ type: 'token', token })}\n\n`
+                ));
+              } catch { /* skip malformed */ }
+            }
+          }
+        } catch (streamErr) {
+          console.error('Stream error:', streamErr);
+          // Fallback message
+          const fallback = contextText
+            ? `**檢索到的相關資料：**\n\n${contextText}`
+            : '抱歉，AI 暫時無法回應。';
           controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: 'token', token: fullText.slice(i, i + 4) })}\n\n`
+            `data: ${JSON.stringify({ type: 'token', token: fallback })}\n\n`
           ));
         }
 
-        // Follow-up questions
+        // Send follow-ups
         controller.enqueue(encoder.encode(
           `data: ${JSON.stringify({ type: 'followups', questions: followUps })}\n\n`
         ));
