@@ -523,12 +523,18 @@ function PlusMenuDropdown({
   onToggleFeature,
   onToggleAgent,
   onClose,
+  uploading,
+  attachments,
+  fileInputRef,
 }: {
   features: { thinkLonger: boolean; deepExplore: boolean; webSearch: boolean };
   agentEnabled: boolean;
   onToggleFeature: (key: 'thinkLonger' | 'deepExplore' | 'webSearch') => void;
   onToggleAgent: () => void;
   onClose: () => void;
+  uploading: boolean;
+  attachments: Array<{ fileId: string; fileName: string }>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -545,10 +551,10 @@ function PlusMenuDropdown({
   const items = [
     {
       icon: <Upload size={15} />,
-      label: '上傳附件',
-      active: false,
+      label: uploading ? '上傳中...' : '上傳附件',
+      active: attachments.length > 0,
       action: () => {
-        alert('即將推出');
+        fileInputRef.current?.click();
         onClose();
       },
     },
@@ -746,6 +752,9 @@ export default function ChatPage() {
     facts: string;
     notes: string;
   } | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ fileId: string; fileName: string; preview: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversation = id ? getConversation(id) : null;
   const messages = conversation?.messages ?? [];
@@ -766,9 +775,27 @@ export default function ChatPage() {
     }
   }, [input]);
 
+  const handleFileUpload = useCallback(async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error((err as { error?: string }).error || 'Upload failed');
+      }
+      const data = await res.json() as { fileId: string; fileName: string; preview: string };
+      setAttachments(prev => [...prev, { fileId: data.fileId, fileName: data.fileName, preview: data.preview }]);
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
   const buildChatOptions = useCallback((): ChatOptions => {
     const opts: ChatOptions = {};
-    // Only include settings if not default
     const s = chatSettings;
     if (
       JSON.stringify(s.docTypes) !== '["all"]' ||
@@ -787,8 +814,11 @@ export default function ChatPage() {
       if (selectedProject.notes) parts.push(`筆記: ${selectedProject.notes}`);
       opts.projectContext = parts.join('\n\n');
     }
+    if (attachments.length > 0) {
+      (opts as Record<string, unknown>).attachments = attachments.map(a => a.fileId);
+    }
     return opts;
-  }, [chatSettings, features, selectedProject]);
+  }, [chatSettings, features, selectedProject, attachments]);
 
   const handleSend = useCallback(
     async (text?: string) => {
@@ -935,7 +965,46 @@ export default function ChatPage() {
       {/* Input area - sticky bottom */}
       <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 sticky bottom-0 z-10">
         <div className="max-w-3xl mx-auto">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.doc,.docx,.pptx,.xlsx,.html,.txt,.csv,.png,.jpg,.jpeg,.webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFileUpload(file);
+              e.target.value = '';
+            }}
+          />
+
           <div className="relative bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 focus-within:border-indigo-400 dark:focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-400/20 dark:focus-within:ring-indigo-600/20 shadow-sm hover:shadow-md transition-all duration-200">
+            {/* Attachment pills */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 px-4 pt-3">
+                {attachments.map((a) => (
+                  <span
+                    key={a.fileId}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                  >
+                    <FileText size={12} />
+                    {a.fileName.length > 20 ? a.fileName.slice(0, 20) + '...' : a.fileName}
+                    <button
+                      onClick={() => setAttachments((prev) => prev.filter((f) => f.fileId !== a.fileId))}
+                      className="ml-0.5 hover:text-red-500 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {uploading && (
+              <div className="flex items-center gap-2 px-4 pt-3 text-xs text-gray-500">
+                <Loader2 size={14} className="animate-spin" />
+                上傳中...
+              </div>
+            )}
             <textarea
               ref={textareaRef}
               value={input}
@@ -990,6 +1059,9 @@ export default function ChatPage() {
                       onToggleFeature={toggleFeature}
                       onToggleAgent={() => setAgentEnabled((v) => !v)}
                       onClose={() => setShowPlusMenu(false)}
+                      uploading={uploading}
+                      attachments={attachments}
+                      fileInputRef={fileInputRef}
                     />
                   )}
                 </div>

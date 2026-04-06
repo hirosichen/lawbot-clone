@@ -130,6 +130,7 @@ export interface ChatOptions {
   thinkLonger?: boolean;
   deepExplore?: boolean;
   projectContext?: string;
+  attachments?: string[];
 }
 
 // --------------- Real API streaming ---------------
@@ -160,6 +161,7 @@ async function streamChatResponse(
       ...(options?.thinkLonger && { thinkLonger: true }),
       ...(options?.deepExplore && { deepExplore: true }),
       ...(options?.projectContext && { projectContext: options.projectContext }),
+      ...(options?.attachments?.length && { attachments: options.attachments }),
     }),
   });
 

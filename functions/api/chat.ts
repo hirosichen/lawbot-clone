@@ -3,6 +3,7 @@
 
 interface Env {
   AI: Ai;
+  PARSED: KVNamespace;
 }
 
 interface ChatRequest {
@@ -18,6 +19,7 @@ interface ChatRequest {
   thinkLonger?: boolean;
   deepExplore?: boolean;
   projectContext?: string;
+  attachments?: string[]; // file IDs from /api/upload
 }
 
 const LAW_API = 'https://law-api.onlymake.ai';
@@ -409,10 +411,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const body = await request.json() as ChatRequest;
-    const { message, conversationHistory = [], settings, webSearch, thinkLonger, deepExplore, projectContext } = body;
+    const { message, conversationHistory = [], settings, webSearch, thinkLonger, deepExplore, projectContext, attachments } = body;
 
     if (!message?.trim()) {
       return Response.json({ error: 'Message is required' }, { status: 400, headers });
+    }
+
+    // Step 0: Load attachment content from KV
+    let attachmentContext = '';
+    if (attachments?.length && env.PARSED) {
+      const fileContents = await Promise.all(
+        attachments.slice(0, 3).map(async (fileId) => {
+          try {
+            const content = await env.PARSED.get(`parsed:${fileId}`, { type: 'text' });
+            return content ? `[附件 ${fileId}]\n${content.slice(0, 8000)}` : null;
+          } catch { return null; }
+        })
+      );
+      const validContents = fileContents.filter(Boolean);
+      if (validContents.length > 0) {
+        attachmentContext = '【使用者上傳的文件】\n' + validContents.join('\n\n') + '\n';
+      }
     }
 
     // Step 1: Semantic search + optional web search in parallel
@@ -474,6 +493,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Step 2: Build prompt
     const systemParts: string[] = [];
+
+    // Attachment context
+    if (attachmentContext) {
+      systemParts.push(attachmentContext);
+      systemParts.push('請根據上述文件內容回答使用者的問題。');
+      systemParts.push('');
+    }
 
     // Project context
     if (projectContext?.trim()) {

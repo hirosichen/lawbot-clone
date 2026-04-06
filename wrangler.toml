@@ -4,3 +4,11 @@ pages_build_output_dir = "./dist"
 
 [ai]
 binding = "AI"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "lawbot-files"
+
+[[kv_namespaces]]
+binding = "PARSED"
+id = "96ee0c4088ad4e5d957b457a52ce3089"
