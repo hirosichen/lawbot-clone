@@ -92,3 +92,77 @@ export interface LawsStatsResponse {
   total_articles: number;
   by_level: Array<{ level: string; count: number }>;
 }
+
+// ===== Project & sub-item types =====
+
+export type EntityType = 'person' | 'org' | 'date' | 'amount' | 'place';
+export type Priority = 'high' | 'medium' | 'low';
+
+export interface Attachment {
+  id: string;
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+  charCount?: number;
+  parseMethod?: string;
+  preview?: string;
+  uploadedAt: string;
+}
+
+export interface Entity {
+  id: string;
+  type: EntityType;
+  name: string;
+  role?: string;
+  createdAt: string;
+}
+
+export interface Issue {
+  id: string;
+  title: string;
+  description?: string;
+  stance?: string;
+  priority: Priority;
+  createdAt: string;
+}
+
+export interface Gap {
+  id: string;
+  description: string;
+  suggestion?: string;
+  priority: Priority;
+  createdAt: string;
+}
+
+export interface ProjectDocument {
+  id: string;
+  title: string;
+  content: string;
+  linkedFromChatId?: string;
+  createdAt: string;
+}
+
+export interface ProjectReference {
+  id: string;
+  source: 'lawbot' | 'custom';
+  title: string;
+  url?: string;
+  content?: string;
+  addedAt: string;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  facts: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  attachments?: Attachment[];
+  entities?: Entity[];
+  issues?: Issue[];
+  gaps?: Gap[];
+  documents?: ProjectDocument[];
+  references?: ProjectReference[];
+}
