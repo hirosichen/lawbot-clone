@@ -10,7 +10,7 @@
   - `src/pages/SearchPage.tsx`: 為搜尋歷史的 `getHistorySnapshot` 加入同樣的快取機制
   - `src/pages/FavoritesPage.tsx`: 修正 `folders` useMemo 依賴 `getFolders` 函式參考（每次重建）導致無限迴圈，改為直接依賴 `favorites` 資料
 - 修復判決詳細頁面 `/ruling/:jid` 的 `c.map is not a function` 錯誤
-  - `src/pages/RulingPage.tsx`: 引用分析資料使用 `Array.isArray` 防禦性檢查，避免 API 回傳非陣列時崩潰
+  - `src/pages/RulingPage.tsx`: 引用分析的 API 回傳 `results` 欄位而非 `citations`，加入 `Array.isArray` 防禦性檢查並正確解析 `results` 欄位
 
 ---
 

@@ -130,10 +130,14 @@ function CitationsPanel({ jid, ruling }: { jid: string; ruling: Ruling }) {
 
   const forwardCitations: Citation[] = Array.isArray(forwardData?.citations)
     ? forwardData.citations
-    : Array.isArray(forwardData) ? forwardData : [];
+    : Array.isArray(forwardData?.results)
+      ? forwardData.results
+      : Array.isArray(forwardData) ? forwardData : [];
   const reverseCitations: Citation[] = Array.isArray(reverseData?.citations)
     ? reverseData.citations
-    : Array.isArray(reverseData) ? reverseData : [];
+    : Array.isArray(reverseData?.results)
+      ? reverseData.results
+      : Array.isArray(reverseData) ? reverseData : [];
 
   return (
     <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
