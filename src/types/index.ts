@@ -152,6 +152,35 @@ export interface ProjectReference {
   addedAt: string;
 }
 
+// ===== Search-related types =====
+
+export type DocType =
+  | 'all'
+  | 'law'
+  | 'judgment'
+  | 'constitutional'
+  | 'interpretation'
+  | 'resolution'
+  | 'legalQA'
+  | 'letter';
+export type SearchMode = 'keyword' | 'semantic';
+export type SearchSort = 'relevance' | 'date';
+
+export interface LawItem {
+  id: string; // slug like 'civil-law'
+  name: string; // 民法
+  category?: string;
+}
+
+export interface SearchHistoryEntry {
+  id: string;
+  query: string;
+  mode: SearchMode;
+  docTypes?: DocType[];
+  dateRange?: [number, number];
+  createdAt: string; // ISO
+}
+
 export interface Project {
   id: string;
   title: string;
