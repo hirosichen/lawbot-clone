@@ -426,7 +426,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       temperature: 0.6,
     });
 
-    // Wrap AI stream: prepend references, append followups
+    // Wrap AI stream: prepend references, re-format tokens, append followups
+    // Qwen3 SSE format (OpenAI compatible):
+    //   data: {"choices":[{"delta":{"reasoning_content":"..."}}]}  ← skip (thinking)
+    //   data: {"choices":[{"delta":{"content":"..."}}]}            ← forward this
+    //   data: [DONE]
     const stream = new ReadableStream({
       async start(controller) {
         // Send references first
@@ -434,12 +438,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           `data: ${JSON.stringify({ type: 'references', references })}\n\n`
         ));
 
-        // Pipe through AI SSE stream, re-wrapping each token
         try {
           const reader = (aiStream as ReadableStream).getReader();
           const decoder = new TextDecoder();
           let buffer = '';
-          let insideThink = false;
 
           while (true) {
             const { done, value } = await reader.read();
@@ -456,15 +458,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
               try {
                 const parsed = JSON.parse(payload);
-                const token: string = parsed.response ?? '';
-                if (!token) continue;
+                const delta = parsed.choices?.[0]?.delta;
+                if (!delta) continue;
 
-                // Skip <think>...</think> blocks
-                if (token.includes('<think>')) { insideThink = true; continue; }
-                if (insideThink) {
-                  if (token.includes('</think>')) { insideThink = false; }
-                  continue;
-                }
+                // Skip reasoning_content (thinking), only forward content
+                const token: string = delta.content;
+                if (typeof token !== 'string' || !token) continue;
 
                 controller.enqueue(encoder.encode(
                   `data: ${JSON.stringify({ type: 'token', token })}\n\n`
@@ -474,7 +473,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           }
         } catch (streamErr) {
           console.error('Stream error:', streamErr);
-          // Fallback message
           const fallback = contextText
             ? `**檢索到的相關資料：**\n\n${contextText}`
             : '抱歉，AI 暫時無法回應。';
@@ -483,7 +481,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           ));
         }
 
-        // Send follow-ups
+        // Send follow-ups after AI is done
         controller.enqueue(encoder.encode(
           `data: ${JSON.stringify({ type: 'followups', questions: followUps })}\n\n`
         ));
