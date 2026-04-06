@@ -6,7 +6,7 @@ import { useFavorites } from '../stores/favorites';
 const DEFAULT_FOLDER = '我的最愛';
 
 export default function FavoritesPage() {
-  const { favorites, removeFavorite, moveTo, getFolders } = useFavorites();
+  const { favorites, removeFavorite, moveTo } = useFavorites();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
@@ -14,10 +14,10 @@ export default function FavoritesPage() {
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
 
   const folders = useMemo(() => {
-    const set = new Set(getFolders());
+    const set = new Set(favorites.map((f) => f.folder));
     set.add(DEFAULT_FOLDER);
     return Array.from(set).sort();
-  }, [getFolders]);
+  }, [favorites]);
 
   const folderCounts = useMemo(() => {
     const counts: Record<string, number> = {};

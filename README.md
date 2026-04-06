@@ -1,6 +1,20 @@
-# React + TypeScript + Vite
+# LawSearch AI - 台灣法律 AI 搜尋引擎
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+台灣法律 AI 搜尋引擎，搜尋超過 2,160 萬筆裁判書、法律條文與司法解釋。
+
+## 更新紀錄
+
+### 2026-04-06
+- 修復 React error #185（Maximum update depth exceeded）導致 /search、/favorites 頁面崩潰
+  - `src/stores/favorites.ts`: 為 `useSyncExternalStore` 的 `getSnapshot` 加入快取機制，避免每次回傳新陣列參考導致無限重渲染
+  - `src/pages/SearchPage.tsx`: 為搜尋歷史的 `getHistorySnapshot` 加入同樣的快取機制
+  - `src/pages/FavoritesPage.tsx`: 修正 `folders` useMemo 依賴 `getFolders` 函式參考（每次重建）導致無限迴圈，改為直接依賴 `favorites` 資料
+
+---
+
+## 技術架構
+
+React + TypeScript + Vite
 
 Currently, two official plugins are available:
 

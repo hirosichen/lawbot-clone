@@ -4,18 +4,24 @@ import type { Favorite } from '../types';
 const STORAGE_KEY = 'lawbot-favorites';
 
 let listeners: Array<() => void> = [];
+let cachedRaw: string | null = null;
+let cachedSnapshot: Favorite[] = [];
 
 function emitChange() {
+  cachedRaw = null; // invalidate cache
   listeners.forEach((l) => l());
 }
 
 function getSnapshot(): Favorite[] {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    cachedSnapshot = raw ? JSON.parse(raw) : [];
   } catch {
-    return [];
+    cachedSnapshot = [];
   }
+  return cachedSnapshot;
 }
 
 function save(favorites: Favorite[]) {

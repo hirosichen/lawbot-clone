@@ -22,18 +22,24 @@ const HISTORY_KEY = 'lawbot-search-history';
 const MAX_HISTORY = 10;
 
 let historyListeners: Array<() => void> = [];
+let cachedHistoryRaw: string | null = null;
+let cachedHistorySnapshot: string[] = [];
 
 function emitHistoryChange() {
+  cachedHistoryRaw = null; // invalidate cache
   historyListeners.forEach((l) => l());
 }
 
 function getHistorySnapshot(): string[] {
+  const raw = localStorage.getItem(HISTORY_KEY);
+  if (raw === cachedHistoryRaw) return cachedHistorySnapshot;
+  cachedHistoryRaw = raw;
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
+    cachedHistorySnapshot = raw ? JSON.parse(raw) : [];
   } catch {
-    return [];
+    cachedHistorySnapshot = [];
   }
+  return cachedHistorySnapshot;
 }
 
 function addHistory(q: string) {
