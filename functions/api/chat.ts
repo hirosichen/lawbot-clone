@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: /api/chat
-// RAG pipeline: semantic search + law search → Qwen3-30B generation
+// RAG pipeline: keyword search + law articles → Gemma 4 26B generation
 
 interface Env {
   AI: Ai;
@@ -10,61 +10,54 @@ interface ChatRequest {
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
+const LAW_API = 'https://law-api.onlymake.ai';
+
+// --- Helpers ---
+
+function cleanText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
+}
+
+// --- RAG: Retrieve relevant context ---
+
 interface SearchResult {
   jid: string;
   jtitle: string;
   jcourt: string;
   jdate: string;
-  chunk_text?: string;
-  section?: string;
-  score?: number;
+  jfull?: string;
 }
 
-interface LawResult {
-  pcode: string;
-  law_name: string;
+interface LawArticleResult {
   article_no: string;
   article_content: string;
 }
 
-const LAW_API = 'https://law-api.onlymake.ai';
-
-// --- RAG: Retrieve relevant context ---
-
+// Keyword search for rulings (reliable, fast)
 async function searchRulings(query: string): Promise<SearchResult[]> {
   try {
     const res = await fetch(
-      `${LAW_API}/api/semantic-search?q=${encodeURIComponent(query)}&limit=5&probes=3`
+      `${LAW_API}/api/search?q=${encodeURIComponent(query)}&limit=3&mode=title`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
-    const data = await res.json() as { results: SearchResult[] };
-    return data.results || [];
+    const data = await res.json() as { results?: SearchResult[] };
+    return (data.results || []).map(r => ({
+      ...r,
+      jfull: r.jfull ? cleanText(r.jfull.slice(0, 400)) : '',
+    }));
   } catch {
     return [];
   }
 }
 
-async function searchLaws(query: string): Promise<LawResult[]> {
-  // Extract law names from query
-  const lawKeywords = [
-    '民法', '刑法', '民事訴訟法', '刑事訴訟法', '憲法',
-    '公司法', '勞動基準法', '勞基法', '消費者保護法', '消保法',
-    '家事事件法', '行政訴訟法', '行政程序法', '國家賠償法',
-    '道路交通管理處罰條例', '著作權法', '商標法', '專利法',
-    '公寓大廈管理條例', '洗錢防制法', '貪污治罪條例',
-    '個人資料保護法', '個資法', '性別平等工作法',
-    '強制執行法', '破產法', '土地法', '稅捐稽徵法',
-  ];
-
-  // Also extract article numbers like "第184條", "第277條"
-  const articleMatch = query.match(/第\s*(\d+(?:-\d+)?)\s*條/);
-  const foundLaws = lawKeywords.filter(k => query.includes(k));
-
-  if (foundLaws.length === 0 && !articleMatch) return [];
-
-  const results: LawResult[] = [];
-
-  // Map common law names to pcodes
+// Search specific law articles
+async function searchLawArticles(query: string): Promise<Array<{ law_name: string; pcode: string; articles: LawArticleResult[] }>> {
   const lawPcodeMap: Record<string, string> = {
     '民法': 'B0000001', '刑法': 'C0000001',
     '民事訴訟法': 'B0010001', '刑事訴訟法': 'C0010001',
@@ -73,122 +66,129 @@ async function searchLaws(query: string): Promise<LawResult[]> {
     '消費者保護法': 'J0170001', '消保法': 'J0170001',
     '家事事件法': 'B0010048', '行政訴訟法': 'A0030154',
     '行政程序法': 'A0030055', '國家賠償法': 'I0020004',
-    '著作權法': 'J0070017', '商標法': 'J0070001',
-    '專利法': 'J0070007', '公寓大廈管理條例': 'D0070118',
+    '著作權法': 'J0070017', '公寓大廈管理條例': 'D0070118',
     '洗錢防制法': 'G0380131', '貪污治罪條例': 'C0000007',
     '個人資料保護法': 'I0050021', '個資法': 'I0050021',
     '性別平等工作法': 'N0030014', '強制執行法': 'B0010004',
     '道路交通管理處罰條例': 'K0040012',
+    '道路交通安全規則': 'K0040013',
   };
 
-  for (const lawName of foundLaws) {
-    const pcode = lawPcodeMap[lawName];
-    if (!pcode) continue;
+  const results: Array<{ law_name: string; pcode: string; articles: LawArticleResult[] }> = [];
 
+  // Find mentioned laws
+  const foundLaws: Array<{ name: string; pcode: string }> = [];
+  for (const [name, pcode] of Object.entries(lawPcodeMap)) {
+    if (query.includes(name)) {
+      foundLaws.push({ name, pcode });
+    }
+  }
+
+  // Extract article numbers: 第184條, 第 277 條, 第11-1條
+  const articleMatches = [...query.matchAll(/第\s*(\d+(?:-\d+)?)\s*條/g)];
+  const articleNos = articleMatches.map(m => m[1]);
+
+  for (const law of foundLaws) {
     try {
-      if (articleMatch) {
-        const articleNo = articleMatch[1];
-        const res = await fetch(
-          `${LAW_API}/api/laws/${pcode}/articles?article_no=${articleNo}`
-        );
-        if (res.ok) {
-          const data = await res.json() as { articles: Array<{ article_no: string; article_content: string }> };
-          for (const a of (data.articles || [])) {
-            results.push({
-              pcode,
-              law_name: lawName,
-              article_no: a.article_no,
-              article_content: a.article_content,
-            });
+      if (articleNos.length > 0) {
+        // Fetch specific articles
+        for (const no of articleNos) {
+          const res = await fetch(
+            `${LAW_API}/api/laws/${law.pcode}/articles?article_no=${no}`,
+            { signal: AbortSignal.timeout(5000) }
+          );
+          if (!res.ok) continue;
+          const data = await res.json() as { articles?: LawArticleResult[] };
+          if (data.articles?.length) {
+            const existing = results.find(r => r.pcode === law.pcode);
+            if (existing) {
+              existing.articles.push(...data.articles);
+            } else {
+              results.push({ law_name: law.name, pcode: law.pcode, articles: [...data.articles] });
+            }
           }
         }
       } else {
-        // Get first few articles as context
-        const res = await fetch(`${LAW_API}/api/laws/${pcode}/articles?q=${encodeURIComponent(query)}`);
-        if (res.ok) {
-          const data = await res.json() as { articles: Array<{ article_type: string; article_no: string; article_content: string }> };
-          const articles = (data.articles || [])
-            .filter((a: { article_type: string }) => a.article_type === 'A')
-            .slice(0, 3);
-          for (const a of articles) {
-            results.push({
-              pcode,
-              law_name: lawName,
-              article_no: a.article_no,
-              article_content: a.article_content,
-            });
+        // Search articles by content
+        const res = await fetch(
+          `${LAW_API}/api/laws/${law.pcode}/articles?q=${encodeURIComponent(query)}`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!res.ok) continue;
+        const data = await res.json() as { articles?: Array<LawArticleResult & { article_type: string }> };
+        const articles = (data.articles || [])
+          .filter(a => a.article_type === 'A')
+          .slice(0, 3);
+        if (articles.length) {
+          results.push({ law_name: law.name, pcode: law.pcode, articles });
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // If no specific law mentioned but article numbers found, try 民法 as default
+  if (foundLaws.length === 0 && articleNos.length > 0) {
+    try {
+      for (const no of articleNos) {
+        const res = await fetch(
+          `${LAW_API}/api/laws/B0000001/articles?article_no=${no}`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (!res.ok) continue;
+        const data = await res.json() as { articles?: LawArticleResult[] };
+        if (data.articles?.length) {
+          const existing = results.find(r => r.pcode === 'B0000001');
+          if (existing) {
+            existing.articles.push(...data.articles);
+          } else {
+            results.push({ law_name: '民法', pcode: 'B0000001', articles: [...data.articles] });
           }
         }
       }
-    } catch {
-      // skip
-    }
+    } catch { /* skip */ }
   }
 
   return results.slice(0, 5);
 }
 
-async function keywordSearch(query: string): Promise<SearchResult[]> {
-  try {
-    const res = await fetch(
-      `${LAW_API}/api/search?q=${encodeURIComponent(query)}&limit=3`
-    );
-    if (!res.ok) return [];
-    const data = await res.json() as { results: SearchResult[] };
-    return data.results || [];
-  } catch {
-    return [];
-  }
-}
+// --- Build context and references ---
 
-// --- Build prompt with retrieved context ---
-
-function buildPrompt(
-  query: string,
+function buildContext(
   rulings: SearchResult[],
-  laws: LawResult[],
-  keywordResults: SearchResult[],
+  lawResults: Array<{ law_name: string; pcode: string; articles: LawArticleResult[] }>,
 ): string {
-  let context = '';
+  const parts: string[] = [];
 
-  if (laws.length > 0) {
-    context += '【相關法條】\n';
-    laws.forEach((l, i) => {
-      context += `[法${i + 1}] ${l.law_name} ${l.article_no}：${l.article_content}\n\n`;
-    });
+  if (lawResults.length > 0) {
+    let lawIdx = 1;
+    for (const law of lawResults) {
+      for (const a of law.articles) {
+        parts.push(`[法${lawIdx}] ${law.law_name} ${a.article_no}：\n${cleanText(a.article_content)}`);
+        lawIdx++;
+      }
+    }
   }
 
   if (rulings.length > 0) {
-    context += '【相關判決（語意搜尋）】\n';
     rulings.forEach((r, i) => {
-      const score = r.score ? `（相似度 ${(r.score * 100).toFixed(0)}%）` : '';
-      context += `[判${i + 1}] ${r.jtitle} ${score}\n`;
-      context += `案號：${r.jid}\n`;
-      if (r.section) context += `段落：${r.section}\n`;
-      if (r.chunk_text) context += `內容：${r.chunk_text.slice(0, 300)}\n`;
-      context += '\n';
+      const snippet = r.jfull ? `\n摘要：${r.jfull.slice(0, 300)}` : '';
+      parts.push(`[判${i + 1}] ${r.jtitle}（${r.jid}）${snippet}`);
     });
   }
 
-  if (keywordResults.length > 0) {
-    context += '【相關判決（關鍵字搜尋）】\n';
-    keywordResults.forEach((r, i) => {
-      context += `[搜${i + 1}] ${r.jtitle}（${r.jid}）\n`;
-    });
-    context += '\n';
-  }
-
-  return context;
+  return parts.join('\n\n');
 }
 
 function buildReferences(
   rulings: SearchResult[],
-  laws: LawResult[],
+  lawResults: Array<{ law_name: string; pcode: string; articles: LawArticleResult[] }>,
 ): Array<{ label: string; type: 'law' | 'ruling' }> {
   const refs: Array<{ label: string; type: 'law' | 'ruling' }> = [];
 
-  for (const l of laws) {
-    refs.push({ label: `${l.law_name}${l.article_no}`, type: 'law' });
+  for (const law of lawResults) {
+    for (const a of law.articles) {
+      refs.push({ label: `${law.law_name}${a.article_no}`, type: 'law' });
+    }
   }
   for (const r of rulings) {
     refs.push({ label: r.jtitle || r.jid, type: 'ruling' });
@@ -197,21 +197,52 @@ function buildReferences(
   return refs;
 }
 
+function generateFollowUps(
+  query: string,
+  lawResults: Array<{ law_name: string; articles: LawArticleResult[] }>,
+  rulings: SearchResult[],
+): string[] {
+  const followUps: string[] = [];
+
+  if (lawResults.length > 0) {
+    followUps.push(`${lawResults[0].law_name}還有哪些相關條文？`);
+  }
+  if (rulings.length > 0) {
+    followUps.push('實務上法院通常如何判決這類案件？');
+  }
+
+  // Topic-specific suggestions
+  if (query.includes('賠償') || query.includes('損害')) {
+    followUps.push('損害賠償的舉證責任如何分配？');
+  } else if (query.includes('契約') || query.includes('合約')) {
+    followUps.push('如果對方違約，可以請求什麼救濟？');
+  } else if (query.includes('勞工') || query.includes('解僱') || query.includes('資遣')) {
+    followUps.push('被違法解僱可以申請哪些救濟管道？');
+  } else if (query.includes('車禍') || query.includes('交通')) {
+    followUps.push('車禍肇事責任的過失比例如何認定？');
+  } else if (query.includes('租') || query.includes('房東') || query.includes('房客')) {
+    followUps.push('租賃契約的押金返還規定為何？');
+  } else {
+    followUps.push('這個問題在實務上有哪些常見爭議？');
+  }
+
+  if (followUps.length < 3) {
+    followUps.push('可以幫我整理相關的法律條文嗎？');
+  }
+
+  return followUps.slice(0, 3);
+}
+
 // --- Main handler ---
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
-  // CORS
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
-
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
 
   try {
     const body = await request.json() as ChatRequest;
@@ -221,74 +252,94 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       return Response.json({ error: 'Message is required' }, { status: 400, headers: corsHeaders });
     }
 
-    // Step 1: Parallel retrieval
-    const [rulings, laws, keywordResults] = await Promise.all([
+    // Step 1: Parallel retrieval (keyword search + law articles)
+    const [rulings, lawResults] = await Promise.all([
       searchRulings(message),
-      searchLaws(message),
-      keywordSearch(message),
+      searchLawArticles(message),
     ]);
 
-    const context_text = buildPrompt(message, rulings, laws, keywordResults);
-    const references = buildReferences(rulings, laws);
+    const contextText = buildContext(rulings, lawResults);
+    const references = buildReferences(rulings, lawResults);
 
-    // Step 2: Build messages for LLM
-    const systemPrompt = `你是一位台灣法律 AI 助手，專精於台灣法律分析與研究。請根據提供的法學資料，以專業、結構化的方式回答使用者的法律問題。
+    // Step 2: Build messages for Gemma 4
+    const systemContent = `你是一位專業的台灣法律 AI 助手。請根據提供的法學資料，以結構化方式回答法律問題。
 
-回答規則：
-1. 使用繁體中文回答
-2. 引用具體法條時使用 [法N] 標記，引用判決時使用 [判N] 標記
-3. 回答要有結構：使用 **粗體** 標示重要概念，用編號列表組織論點
-4. 先說明法律依據，再分析實務見解，最後給出具體建議
-5. 如果提供的資料不足以完整回答，請誠實說明並建議使用者諮詢律師
-6. 不要編造不存在的法條或判決
+規則：
+- 使用繁體中文回答
+- 引用法條時標記 [法N]，引用判決時標記 [判N]
+- 使用 **粗體** 標示重要概念
+- 先說明法律依據，再分析實務見解，最後給具體建議
+- 如果資料不足，誠實說明並建議諮詢律師
+- 不要編造法條或判決
+${contextText ? `\n以下是相關法學資料：\n${contextText}` : '\n目前沒有檢索到相關資料，請根據法律知識回答。'}`;
 
-${context_text ? `以下是檢索到的相關法學資料，請根據這些資料回答：\n\n${context_text}` : '目前沒有檢索到直接相關的法學資料，請根據你的法律知識回答，並提醒使用者查閱具體法條。'}`;
-
-    const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: systemPrompt },
+    const aiMessages = [
+      { role: 'system' as const, content: systemContent },
+      ...conversationHistory.slice(-6).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+      { role: 'user' as const, content: message },
     ];
 
-    // Add conversation history (last 6 turns)
-    const recentHistory = conversationHistory.slice(-6);
-    for (const msg of recentHistory) {
-      messages.push({ role: msg.role, content: msg.content });
-    }
-
-    messages.push({ role: 'user', content: message });
-
-    // Step 3: Get response from Qwen3 (non-streaming for reliability, then stream to client)
-    const aiResponse = await env.AI.run(
-      '@cf/qwen/qwen3-30b-a3b-fp8' as BaseAiTextGenerationModels,
-      {
-        messages: messages as RoleScopedChatInput[],
+    // Step 3: Call Gemma 4 26B
+    let fullText: string;
+    try {
+      // @ts-expect-error - model ID valid but not in TS types
+      const aiResponse = await env.AI.run('@cf/google/gemma-4-26b-a4b-it', {
+        messages: aiMessages,
         max_tokens: 2048,
         temperature: 0.7,
+      });
+
+      // Extract response from various possible formats
+      const r = aiResponse as Record<string, unknown>;
+      if (typeof r?.response === 'string' && r.response) {
+        fullText = r.response;
+      } else if (Array.isArray(r?.choices)) {
+        const choices = r.choices as Array<{ message?: { content?: string } }>;
+        fullText = choices[0]?.message?.content || '';
+      } else if (typeof r?.result === 'string') {
+        fullText = r.result;
+      } else {
+        fullText = '';
       }
-    ) as { response?: string };
 
-    const fullText = aiResponse?.response || '抱歉，目前無法生成回覆。請稍後再試。';
+      // Remove <think>...</think> blocks if present (some models include reasoning)
+      fullText = fullText.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-    // Build SSE stream: references → tokens (chunked for typing effect) → followups
+      if (!fullText) {
+        throw new Error('Empty AI response');
+      }
+    } catch (aiErr) {
+      console.error('AI error:', aiErr);
+      if (contextText) {
+        fullText = `**以下是為您檢索到的相關法學資料：**\n\n${contextText}\n\n> AI 分析功能暫時無法使用，以上為原始搜尋結果。`;
+      } else {
+        fullText = '抱歉，目前無法為您分析此問題。請嘗試更具體的問題描述，或使用精準搜尋功能查找判決和法條。';
+      }
+    }
+
+    // Step 4: Stream response to client via SSE
     const encoder = new TextEncoder();
+    const followUps = generateFollowUps(message, lawResults, rulings);
 
     const stream = new ReadableStream({
       async start(controller) {
-        // Send references first
+        // Send references
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ type: 'references', references })}\n\n`)
         );
 
-        // Stream text in small chunks for typing effect
-        const chunkSize = 3; // characters per chunk
+        // Stream text in chunks (typing effect)
+        const chunkSize = 4;
         for (let i = 0; i < fullText.length; i += chunkSize) {
-          const token = fullText.slice(i, i + chunkSize);
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'token', token })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ type: 'token', token: fullText.slice(i, i + chunkSize) })}\n\n`)
           );
         }
 
-        // Send follow-up questions
-        const followUps = generateFollowUps(message, laws, rulings);
+        // Send follow-ups
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ type: 'followups', questions: followUps })}\n\n`)
         );
@@ -307,15 +358,11 @@ ${context_text ? `以下是檢索到的相關法學資料，請根據這些資�
       },
     });
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    return Response.json(
-      { error: 'Internal server error', details: errorMessage },
-      { status: 500, headers: corsHeaders }
-    );
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return Response.json({ error: msg }, { status: 500, headers: corsHeaders });
   }
 };
 
-// Handle CORS preflight
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     headers: {
@@ -325,36 +372,3 @@ export const onRequestOptions: PagesFunction = async () => {
     },
   });
 };
-
-function generateFollowUps(
-  query: string,
-  laws: LawResult[],
-  rulings: SearchResult[],
-): string[] {
-  const followUps: string[] = [];
-
-  if (laws.length > 0) {
-    const lawName = laws[0].law_name;
-    followUps.push(`${lawName}還有哪些相關條文？`);
-  }
-
-  if (rulings.length > 0) {
-    followUps.push('實務上法院通常如何判決這類案件？');
-  }
-
-  if (query.includes('賠償') || query.includes('損害')) {
-    followUps.push('損害賠償的舉證責任如何分配？');
-  } else if (query.includes('契約') || query.includes('合約')) {
-    followUps.push('如果對方違約，可以請求什麼救濟？');
-  } else if (query.includes('勞工') || query.includes('解僱') || query.includes('資遣')) {
-    followUps.push('被違法解僱可以申請哪些救濟管道？');
-  } else {
-    followUps.push('這個問題在實務上有哪些常見爭議？');
-  }
-
-  if (followUps.length < 3) {
-    followUps.push('可以幫我整理相關的法律條文嗎？');
-  }
-
-  return followUps.slice(0, 3);
-}
