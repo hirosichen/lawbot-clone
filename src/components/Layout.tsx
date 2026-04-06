@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
 import { MessageSquare, FolderOpen, Search, Bookmark, Clock, Sun, Moon } from 'lucide-react';
 import Sidebar from './Sidebar';
@@ -18,6 +18,7 @@ export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
@@ -85,8 +86,33 @@ export default function Layout() {
           onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         />
         <main className="flex-1 overflow-y-auto">
-          <Outlet />
+          <div
+            key={location.pathname}
+            className="animate-fade-in h-full"
+          >
+            <Outlet />
+          </div>
         </main>
+
+        {/* Mobile bottom nav */}
+        <nav className="md:hidden flex items-center justify-around border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 pb-[env(safe-area-inset-bottom)]">
+          {mobileNavItems.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] transition-colors ${
+                  isActive
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 dark:text-gray-500'
+                }`
+              }
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </div>
   );

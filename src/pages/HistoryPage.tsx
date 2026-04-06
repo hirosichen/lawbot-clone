@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   MoreHorizontal,
@@ -9,32 +9,13 @@ import {
   CheckSquare,
   Square,
   X,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { useConversations } from '../stores/chat';
 import type { Conversation } from '../stores/chat';
+import { relativeTime } from '../utils/time';
 
 // --------------- Helpers ---------------
-
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '剛剛';
-  if (minutes < 60) return `大約 ${minutes} 分鐘前`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `大約 ${hours} 小時前`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `大約 ${days} 天前`;
-
-  const months = Math.floor(days / 30);
-  if (months < 12) return `大約 ${months} 個月前`;
-
-  return `大約 ${Math.floor(months / 12)} 年前`;
-}
 
 function getPreviewText(conv: Conversation): string {
   const aiMsg = conv.messages.find((m) => m.role === 'assistant');
@@ -72,7 +53,7 @@ function ConversationCard({
   return (
     <div
       onClick={handleClick}
-      className={`group relative cursor-pointer rounded-xl border bg-white dark:bg-gray-900 p-4 hover:shadow-md transition-all ${
+      className={`group relative cursor-pointer rounded-xl border bg-white dark:bg-gray-900 p-4 transition-all duration-200 hover:shadow-lg hover:scale-[1.01] ${
         isSelected
           ? 'border-primary-400 dark:border-primary-600 bg-primary-50/50 dark:bg-primary-900/10'
           : 'border-gray-200 dark:border-gray-800 hover:border-primary-300 dark:hover:border-primary-700'
@@ -137,7 +118,7 @@ function ConversationCard({
           <div className="flex items-center gap-3 mt-2.5 text-[11px] text-gray-400 dark:text-gray-500">
             <span className="flex items-center gap-1">
               <Clock size={11} />
-              {timeAgo(conv.createdAt)}
+              {relativeTime(conv.createdAt)}
             </span>
             <span className="flex items-center gap-1">
               <MessageSquare size={11} />
@@ -255,11 +236,20 @@ export default function HistoryPage() {
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <MessageSquare size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
             {conversations.length === 0
               ? '還沒有對話紀錄，開始您的第一個 AI 問答吧！'
               : '沒有符合搜尋條件的紀錄'}
           </p>
+          {conversations.length === 0 && (
+            <Link
+              to="/chat"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
+            >
+              <MessageSquarePlus size={16} />
+              開始新對話
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

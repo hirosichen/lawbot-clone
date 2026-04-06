@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, Plus, Trash2, FolderOpen, Search, MoveRight, X } from 'lucide-react';
+import { Bookmark, Plus, Trash2, FolderOpen, Search, MoveRight, X, Check } from 'lucide-react';
 import { useFavorites } from '../stores/favorites';
 
 const DEFAULT_FOLDER = '我的最愛';
@@ -15,6 +15,14 @@ export default function FavoritesPage() {
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
+  const newFolderInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus new folder input
+  useEffect(() => {
+    if (showNewFolder && newFolderInputRef.current) {
+      newFolderInputRef.current.focus();
+    }
+  }, [showNewFolder]);
 
   const folders = useMemo(() => {
     const set = new Set(favorites.map((f) => f.folder));
@@ -33,12 +41,9 @@ export default function FavoritesPage() {
   const filtered = useMemo(() => {
     let list = favorites;
 
-    // Apply folder filter: only when scope is 'current' and a folder is selected
     if (selectedFolder && searchScope === 'current') {
       list = list.filter((f) => f.folder === selectedFolder);
     }
-    // When scope is 'current' and no folder selected, show all (same as before)
-    // When scope is 'all', skip folder filtering entirely
 
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -53,9 +58,10 @@ export default function FavoritesPage() {
   }, [favorites, selectedFolder, searchQuery, searchScope]);
 
   const handleAddFolder = () => {
-    if (newFolderName.trim() && !folders.includes(newFolderName.trim())) {
-      // Folders are created implicitly when a favorite is moved to them.
-      // We just close the dialog; user can now move items to this folder.
+    const name = newFolderName.trim();
+    if (name && !folders.includes(name)) {
+      // Create folder by selecting it (folders are implicit)
+      setSelectedFolder(name);
       setShowNewFolder(false);
       setNewFolderName('');
     }
@@ -67,8 +73,7 @@ export default function FavoritesPage() {
   };
 
   const handleSearch = () => {
-    // Search is already reactive via the filtered memo,
-    // this handler is for the explicit search button click
+    // Search is already reactive via the filtered memo
   };
 
   return (
@@ -95,8 +100,12 @@ export default function FavoritesPage() {
             <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">資料夾</span>
               <button
-                onClick={() => setShowNewFolder(true)}
+                onClick={() => {
+                  setShowNewFolder(true);
+                  setNewFolderName('');
+                }}
                 className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 cursor-pointer"
+                title="新增資料夾"
               >
                 <Plus size={16} />
               </button>
@@ -105,15 +114,35 @@ export default function FavoritesPage() {
             {showNewFolder && (
               <div className="p-2 border-b border-gray-200 dark:border-gray-800 flex gap-1">
                 <input
+                  ref={newFolderInputRef}
                   type="text"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddFolder()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddFolder();
+                    if (e.key === 'Escape') {
+                      setShowNewFolder(false);
+                      setNewFolderName('');
+                    }
+                  }}
                   placeholder="資料夾名稱"
                   className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  autoFocus
                 />
-                <button onClick={() => setShowNewFolder(false)} className="p-1 text-gray-400 cursor-pointer">
+                <button
+                  onClick={handleAddFolder}
+                  disabled={!newFolderName.trim() || folders.includes(newFolderName.trim())}
+                  className="p-1 text-primary-600 hover:text-primary-700 disabled:text-gray-300 dark:disabled:text-gray-600 cursor-pointer disabled:cursor-not-allowed"
+                  title="確認"
+                >
+                  <Check size={14} />
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNewFolder(false);
+                    setNewFolderName('');
+                  }}
+                  className="p-1 text-gray-400 cursor-pointer"
+                >
                   <X size={14} />
                 </button>
               </div>
@@ -128,7 +157,9 @@ export default function FavoritesPage() {
               }`}
             >
               <span>全部</span>
-              <span className="text-xs text-gray-400">{favorites.length}</span>
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                {favorites.length}
+              </span>
             </button>
 
             {folders.map((folder) => (
@@ -145,7 +176,9 @@ export default function FavoritesPage() {
                   <FolderOpen size={14} />
                   {folder}
                 </span>
-                <span className="text-xs text-gray-400">{folderCounts[folder] || 0}</span>
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  {folderCounts[folder] || 0}
+                </span>
               </button>
             ))}
           </div>

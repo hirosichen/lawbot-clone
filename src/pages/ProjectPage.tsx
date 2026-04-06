@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Trash2, ArrowRight, Briefcase, X } from 'lucide-react';
 import { useProjects } from '../stores/projects';
+import { relativeTime } from '../utils/time';
 
 export default function ProjectPage() {
   const { projects, addProject, removeProject } = useProjects();
@@ -9,6 +10,7 @@ export default function ProjectPage() {
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newFacts, setNewFacts] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return projects;
@@ -20,11 +22,6 @@ export default function ProjectPage() {
     );
   }, [projects, searchQuery]);
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-  };
-
   const handleCreate = () => {
     if (!newTitle.trim()) return;
     addProject(newTitle.trim(), newFacts.trim());
@@ -33,11 +30,16 @@ export default function ProjectPage() {
     setShowNewDialog(false);
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (window.confirm('確定要刪除此案件嗎？')) {
-      removeProject(id);
+    setDeleteTarget(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      removeProject(deleteTarget);
+      setDeleteTarget(null);
     }
   };
 
@@ -98,11 +100,11 @@ export default function ProjectPage() {
               </div>
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
                 <span className="text-xs text-gray-400">
-                  更新：{formatDate(project.updatedAt)}
+                  更新：{relativeTime(project.updatedAt)}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={(e) => handleDelete(e, project.id)}
+                    onClick={(e) => handleDeleteClick(e, project.id)}
                     className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
                     title="刪除案件"
                   >
@@ -115,6 +117,40 @@ export default function ProjectPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">刪除案件</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">此操作無法復原</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+              確定要刪除此案件嗎？刪除後將無法恢復所有相關資料。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
+              >
+                確認刪除
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
