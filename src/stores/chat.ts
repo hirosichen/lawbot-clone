@@ -5,6 +5,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 export interface ChatReference {
   label: string;
   type: 'law' | 'ruling';
+  link?: string; // e.g. /ruling/xxx or /law/xxx
 }
 
 export interface ChatMessage {

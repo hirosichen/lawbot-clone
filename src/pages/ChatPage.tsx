@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Send,
   Copy,
@@ -39,15 +39,26 @@ function ReferenceChips({ references }: { references: ChatReference[] }) {
         法學資料
       </p>
       <div className="flex flex-wrap gap-1.5">
-        {visible.map((ref, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200"
-          >
-            <FileText size={11} className="shrink-0" />
-            {truncateRef(ref.label, 30)}
-          </span>
-        ))}
+        {visible.map((ref, i) =>
+          ref.link ? (
+            <Link
+              key={i}
+              to={ref.link}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200"
+            >
+              <FileText size={11} className="shrink-0" />
+              {truncateRef(ref.label, 30)}
+            </Link>
+          ) : (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-all duration-200"
+            >
+              <FileText size={11} className="shrink-0" />
+              {truncateRef(ref.label, 30)}
+            </span>
+          ),
+        )}
         {!expanded && remaining > 0 && (
           <button
             onClick={() => setExpanded(true)}
