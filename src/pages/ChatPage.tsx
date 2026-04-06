@@ -16,7 +16,7 @@ import {
   Loader2,
   MessageSquarePlus,
 } from 'lucide-react';
-import { useConversations } from '../stores/chat';
+import { useConversations, useStreamingState } from '../stores/chat';
 import type { ChatMessage, ChatReference } from '../stores/chat';
 
 // --------------- Helpers ---------------
@@ -252,7 +252,40 @@ function LoadingBubble() {
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-5 py-4 rounded-2xl rounded-bl-md shadow-sm">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <Loader2 size={16} className="animate-spin text-indigo-500" />
-          <span>正在分析法律問題...</span>
+          <span>正在搜尋法學資料並分析中...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StreamingBubble({ onFollowUp }: { onFollowUp: (q: string) => void }) {
+  const streaming = useStreamingState();
+
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-[90%] md:max-w-[80%]">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-5 py-4 rounded-2xl rounded-bl-md shadow-sm">
+          {streaming.references.length > 0 && (
+            <ReferenceChips references={streaming.references} />
+          )}
+          {streaming.content ? (
+            <MessageContent content={streaming.content} />
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <Loader2 size={16} className="animate-spin text-indigo-500" />
+              <span>AI 正在生成回覆...</span>
+            </div>
+          )}
+          {streaming.content && (
+            <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+              <Loader2 size={12} className="animate-spin" />
+              <span>生成中...</span>
+            </div>
+          )}
+          {streaming.followUpQuestions.length > 0 && (
+            <FollowUpQuestions questions={streaming.followUpQuestions} onSelect={onFollowUp} />
+          )}
         </div>
       </div>
     </div>
@@ -276,8 +309,9 @@ export default function ChatPage() {
     getConversation,
     createConversation,
     addUserMessage,
-    simulateResponse,
+    sendMessage,
   } = useConversations();
+  const streaming = useStreamingState();
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -288,11 +322,12 @@ export default function ChatPage() {
   const conversation = id ? getConversation(id) : null;
   const messages = conversation?.messages ?? [];
   const isNewChat = !id;
+  const isStreaming = streaming.conversationId === id;
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or streaming content
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, isLoading]);
+  }, [messages.length, isLoading, streaming.content]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -313,20 +348,21 @@ export default function ChatPage() {
 
       try {
         if (isNewChat) {
-          // Create new conversation and navigate
           const title = content.length > 40 ? content.slice(0, 40) + '...' : content;
           const conv = createConversation(title, content);
           navigate(`/chat/${conv.id}`, { replace: true });
-          await simulateResponse(conv.id);
+          await sendMessage(conv.id, content);
         } else if (id) {
           addUserMessage(id, content);
-          await simulateResponse(id);
+          await sendMessage(id, content);
         }
+      } catch (err) {
+        console.error('Chat error:', err);
       } finally {
         setIsLoading(false);
       }
     },
-    [input, isLoading, isNewChat, id, createConversation, addUserMessage, simulateResponse, navigate],
+    [input, isLoading, isNewChat, id, createConversation, addUserMessage, sendMessage, navigate],
   );
 
   const handleNewChat = () => {
@@ -412,7 +448,8 @@ export default function ChatPage() {
                 />
               ),
             )}
-            {isLoading && <LoadingBubble />}
+            {isLoading && !isStreaming && <LoadingBubble />}
+            {isStreaming && <StreamingBubble onFollowUp={(q) => handleSend(q)} />}
             <div ref={messagesEndRef} />
           </div>
         )}
