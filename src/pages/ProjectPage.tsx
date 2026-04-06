@@ -48,12 +48,12 @@ export default function ProjectPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Briefcase size={24} className="text-primary-600" />
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">案件管理</h1>
+          <Briefcase size={24} className="text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">案件管理</h1>
         </div>
         <button
           onClick={() => setShowNewDialog(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all duration-200 cursor-pointer shadow-sm"
         >
           <Plus size={16} />
           新增案件
@@ -62,20 +62,22 @@ export default function ProjectPage() {
 
       {/* Search */}
       <div className="relative mb-6">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="搜尋案件標題或事實..."
-          className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 text-sm shadow-sm transition-all duration-200"
         />
       </div>
 
       {/* Card Grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
-          <Briefcase size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gray-50 dark:bg-gray-800 mb-5">
+            <Briefcase size={36} className="text-gray-200 dark:text-gray-600" />
+          </div>
           <p className="text-gray-500 dark:text-gray-400">
             {projects.length === 0 ? '還沒有案件，點擊上方按鈕新增案件' : '沒有符合搜尋條件的案件'}
           </p>
@@ -86,14 +88,14 @@ export default function ProjectPage() {
             <Link
               key={project.id}
               to={`/project/${project.id}`}
-              className="group bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 hover:shadow-md transition-shadow flex flex-col"
+              className="group bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 border-l-[3px] border-l-indigo-500 dark:border-l-indigo-400 p-5 hover:shadow-md transition-all duration-200 flex flex-col"
             >
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                   {project.title}
                 </h3>
                 {project.facts && (
-                  <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                  <p className="mt-2 text-sm text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">
                     {project.facts}
                   </p>
                 )}
@@ -105,12 +107,12 @@ export default function ProjectPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => handleDeleteClick(e, project.id)}
-                    className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 dark:text-gray-600 hover:text-red-500 cursor-pointer transition-all duration-200"
                     title="刪除案件"
                   >
                     <Trash2 size={16} />
                   </button>
-                  <span className="p-1.5 text-gray-400 group-hover:text-primary-600 transition-colors">
+                  <span className="p-1.5 text-gray-300 dark:text-gray-600 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                     <ArrowRight size={16} />
                   </span>
                 </div>
@@ -122,14 +124,14 @@ export default function ProjectPage() {
 
       {/* Delete Confirmation Dialog */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl w-full max-w-sm mx-4 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl w-full max-w-sm mx-4 p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <Trash2 size={20} className="text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">刪除案件</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">刪除案件</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">此操作無法復原</p>
               </div>
             </div>
@@ -139,13 +141,13 @@ export default function ProjectPage() {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 cursor-pointer"
               >
                 取消
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all duration-200 cursor-pointer shadow-sm"
               >
                 確認刪除
               </button>
@@ -156,70 +158,73 @@ export default function ProjectPage() {
 
       {/* New Case Dialog */}
       {showNewDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-xl w-full max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">新增案件</h2>
-              <button
-                onClick={() => {
-                  setShowNewDialog(false);
-                  setNewTitle('');
-                  setNewFacts('');
-                }}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  案件標題
-                </label>
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                  placeholder="輸入案件標題"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                  autoFocus
-                />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-indigo-500 to-violet-500" />
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">新增案件</h2>
+                <button
+                  onClick={() => {
+                    setShowNewDialog(false);
+                    setNewTitle('');
+                    setNewFacts('');
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 cursor-pointer transition-all duration-200"
+                >
+                  <X size={20} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  事實描述
-                </label>
-                <textarea
-                  value={newFacts}
-                  onChange={(e) => setNewFacts(e.target.value)}
-                  placeholder="輸入案件事實..."
-                  rows={4}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
-                />
-              </div>
-            </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    案件標題
+                  </label>
+                  <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                    placeholder="輸入案件標題"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 text-sm transition-all duration-200"
+                    autoFocus
+                  />
+                </div>
 
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowNewDialog(false);
-                  setNewTitle('');
-                  setNewFacts('');
-                }}
-                className="px-4 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newTitle.trim()}
-                className="px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                建立
-              </button>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    事實描述
+                  </label>
+                  <textarea
+                    value={newFacts}
+                    onChange={(e) => setNewFacts(e.target.value)}
+                    placeholder="輸入案件事實..."
+                    rows={4}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 text-sm resize-none transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowNewDialog(false);
+                    setNewTitle('');
+                    setNewFacts('');
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleCreate}
+                  disabled={!newTitle.trim()}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  建立
+                </button>
+              </div>
             </div>
           </div>
         </div>

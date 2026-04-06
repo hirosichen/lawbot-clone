@@ -35,14 +35,14 @@ function ReferenceChips({ references }: { references: ChatReference[] }) {
 
   return (
     <div className="mb-3">
-      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide">
+      <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide">
         法學資料
       </p>
       <div className="flex flex-wrap gap-1.5">
         {visible.map((ref, i) => (
           <span
             key={i}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-200"
           >
             <FileText size={11} className="shrink-0" />
             {truncateRef(ref.label, 30)}
@@ -51,7 +51,7 @@ function ReferenceChips({ references }: { references: ChatReference[] }) {
         {!expanded && remaining > 0 && (
           <button
             onClick={() => setExpanded(true)}
-            className="inline-flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            className="inline-flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
           >
             查看更多 ({remaining})
             <ChevronRight size={12} />
@@ -63,12 +63,13 @@ function ReferenceChips({ references }: { references: ChatReference[] }) {
 }
 
 function MessageContent({ content }: { content: string }) {
+  // Render markdown-like content with citation badges
   const lines = content.split('\n');
 
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed">
       {lines.map((line, i) => {
-        if (!line.trim()) return <div key={i} className="h-3" />;
+        if (!line.trim()) return <div key={i} className="h-2" />;
 
         // Replace citation markers [N] with styled badges
         const parts = line.split(/(\[\d+\])/g);
@@ -78,7 +79,7 @@ function MessageContent({ content }: { content: string }) {
             return (
               <span
                 key={j}
-                className="inline-flex items-center justify-center w-4.5 h-4.5 mx-0.5 text-[10px] font-bold rounded bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 cursor-pointer hover:bg-primary-200 dark:hover:bg-primary-800 align-super"
+                className="inline-flex items-center justify-center w-4.5 h-4.5 mx-0.5 text-[10px] font-bold rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 cursor-pointer hover:bg-indigo-200 dark:hover:bg-indigo-800 align-super transition-colors"
               >
                 {match[1]}
               </span>
@@ -90,7 +91,7 @@ function MessageContent({ content }: { content: string }) {
         // Bold headings
         if (line.startsWith('**') && line.endsWith('**')) {
           return (
-            <p key={i} className="font-bold text-gray-900 dark:text-white mt-4 mb-1.5">
+            <p key={i} className="font-semibold text-gray-900 dark:text-white mt-3 mb-1">
               {rendered}
             </p>
           );
@@ -99,7 +100,7 @@ function MessageContent({ content }: { content: string }) {
         // Numbered items
         if (/^\d+\.\s/.test(line)) {
           return (
-            <p key={i} className="ml-4 my-1 pl-1">
+            <p key={i} className="ml-4 my-0.5">
               {rendered}
             </p>
           );
@@ -108,14 +109,14 @@ function MessageContent({ content }: { content: string }) {
         // Lines starting with - (bullet)
         if (line.trim().startsWith('- ')) {
           return (
-            <p key={i} className="ml-6 my-1 pl-1 relative before:content-[''] before:absolute before:left-[-8px] before:top-[10px] before:w-1 before:h-1 before:rounded-full before:bg-gray-400 dark:before:bg-gray-500">
+            <p key={i} className="ml-6 my-0.5">
               {rendered}
             </p>
           );
         }
 
         return (
-          <p key={i} className="my-1">
+          <p key={i} className="my-0.5">
             {rendered}
           </p>
         );
@@ -136,10 +137,10 @@ function ActionButtons({ onCopy, content }: { onCopy: () => void; content: strin
   };
 
   return (
-    <div className="flex items-center gap-1 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+    <div className="flex items-center gap-0.5 mt-3 pt-2 border-t border-gray-100 dark:border-gray-800">
       <button
         onClick={handleCopy}
-        className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
         title="複製"
       >
         <Copy size={13} />
@@ -147,10 +148,10 @@ function ActionButtons({ onCopy, content }: { onCopy: () => void; content: strin
       </button>
       <button
         onClick={() => setLiked(liked === 'up' ? null : 'up')}
-        className={`p-1.5 rounded transition-colors ${
+        className={`p-1.5 rounded-lg transition-all duration-200 ${
           liked === 'up'
             ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
-            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
         }`}
         title="有用"
       >
@@ -158,23 +159,23 @@ function ActionButtons({ onCopy, content }: { onCopy: () => void; content: strin
       </button>
       <button
         onClick={() => setLiked(liked === 'down' ? null : 'down')}
-        className={`p-1.5 rounded transition-colors ${
+        className={`p-1.5 rounded-lg transition-all duration-200 ${
           liked === 'down'
             ? 'text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20'
-            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
         }`}
         title="沒有幫助"
       >
         <ThumbsDown size={13} />
       </button>
       <button
-        className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
         title="重新生成"
       >
         <RefreshCw size={13} />
       </button>
       <button
-        className="p-1.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
         title="分享"
       >
         <Share2 size={13} />
@@ -192,13 +193,13 @@ function FollowUpQuestions({
 }) {
   return (
     <div className="mt-3">
-      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">相關延伸問題</p>
+      <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2">相關延伸問題</p>
       <div className="flex flex-col gap-1.5">
         {questions.map((q, i) => (
           <button
             key={i}
             onClick={() => onSelect(q)}
-            className="text-left px-3 py-2 rounded-lg text-sm text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+            className="text-left px-3 py-2 rounded-lg text-sm text-indigo-700 dark:text-indigo-300 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all duration-200"
           >
             {q}
           </button>
@@ -212,7 +213,7 @@ function UserBubble({ message }: { message: ChatMessage }) {
   return (
     <div className="flex justify-end">
       <div className="max-w-[80%] md:max-w-[70%]">
-        <div className="bg-primary-600 text-white px-4 py-2.5 rounded-2xl rounded-br-md text-sm leading-relaxed">
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white px-5 py-3 rounded-2xl rounded-br-md text-sm leading-relaxed shadow-sm">
           {message.content}
         </div>
       </div>
@@ -230,7 +231,7 @@ function AssistantBubble({
   return (
     <div className="flex justify-start">
       <div className="max-w-[90%] md:max-w-[80%]">
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-4 py-3 rounded-2xl rounded-bl-md shadow-sm">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-5 py-4 rounded-2xl rounded-bl-md shadow-sm">
           {message.references && message.references.length > 0 && (
             <ReferenceChips references={message.references} />
           )}
@@ -248,9 +249,9 @@ function AssistantBubble({
 function LoadingBubble() {
   return (
     <div className="flex justify-start">
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-4 py-3 rounded-2xl rounded-bl-md shadow-sm">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 px-5 py-4 rounded-2xl rounded-bl-md shadow-sm">
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <Loader2 size={16} className="animate-spin" />
+          <Loader2 size={16} className="animate-spin text-indigo-500" />
           <span>正在分析法律問題...</span>
         </div>
       </div>
@@ -312,6 +313,7 @@ export default function ChatPage() {
 
       try {
         if (isNewChat) {
+          // Create new conversation and navigate
           const title = content.length > 40 ? content.slice(0, 40) + '...' : content;
           const conv = createConversation(title, content);
           navigate(`/chat/${conv.id}`, { replace: true });
@@ -348,7 +350,7 @@ export default function ChatPage() {
           </h2>
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 cursor-pointer"
           >
             <MessageSquarePlus size={14} />
             新對話
@@ -362,14 +364,14 @@ export default function ChatPage() {
           /* New chat welcome */
           <div className="max-w-2xl mx-auto flex flex-col items-center justify-center h-full min-h-[60vh]">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-sm font-medium mb-4">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 text-sm font-medium mb-5 border border-indigo-100 dark:border-indigo-800/50">
                 <Zap size={14} />
                 AI 法律助手
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                加速您的法律工作流程
+              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+                加速您的法律工作流程 <span role="img" aria-label="lightning">&#9889;</span>
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
+              <p className="text-gray-400 dark:text-gray-500 text-sm">
                 輸入法律問題，AI 將為您分析相關法條與判決
               </p>
             </div>
@@ -387,7 +389,7 @@ export default function ChatPage() {
                   <button
                     key={q}
                     onClick={() => handleSend(q)}
-                    className={`text-left p-4 rounded-xl border bg-gradient-to-br ${meta.gradient} ${meta.border} text-sm text-gray-700 dark:text-gray-300 hover:shadow-md hover:scale-[1.02] transition-all duration-200 group`}
+                    className={`text-left p-4 rounded-xl border bg-gradient-to-br ${meta.gradient} ${meta.border} text-sm text-gray-600 dark:text-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group`}
                   >
                     <span className="text-xl mb-2 block">{meta.emoji}</span>
                     <span className="group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{q}</span>
@@ -419,7 +421,7 @@ export default function ChatPage() {
       {/* Input area - sticky bottom */}
       <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 sticky bottom-0 z-10">
         <div className="max-w-3xl mx-auto">
-          <div className="relative bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 focus-within:border-primary-400 dark:focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-400 dark:focus-within:ring-primary-600 transition-all">
+          <div className="relative bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 focus-within:border-indigo-400 dark:focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-400/20 dark:focus-within:ring-indigo-600/20 shadow-sm hover:shadow-md transition-all duration-200">
             <textarea
               ref={textareaRef}
               value={input}
@@ -431,35 +433,35 @@ export default function ChatPage() {
                   : '追問更多內容...'
               }
               rows={1}
-              className="w-full px-4 pt-3 pb-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm resize-none focus:outline-none"
+              className="w-full px-5 pt-4 pb-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm resize-none focus:outline-none"
             />
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-3 pb-2">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between px-3 pb-2.5">
+              <div className="flex items-center gap-0.5">
                 <button
-                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
                   title="設定"
                 >
                   <Settings size={16} />
                 </button>
                 <button
-                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
                   title="附加"
                 >
                   <Plus size={16} />
                 </button>
-                <button className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
+                <button className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200">
                   <FileText size={13} />
                   選取案件
                 </button>
                 <div className="flex items-center gap-1 ml-1">
                   <button
                     onClick={() => setAgentEnabled(!agentEnabled)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
                       agentEnabled
-                        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'
+                        ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                        : 'text-gray-400 dark:text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800 border border-transparent'
                     }`}
                   >
                     代理
@@ -467,7 +469,7 @@ export default function ChatPage() {
                   {agentEnabled && (
                     <button
                       onClick={() => setAgentEnabled(false)}
-                      className="p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="p-0.5 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
                       <X size={12} />
                     </button>
@@ -478,7 +480,7 @@ export default function ChatPage() {
               <button
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
-                className="p-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
                 title="送出"
               >
                 <Send size={16} />

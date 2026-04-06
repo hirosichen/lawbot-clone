@@ -57,3 +57,38 @@ export interface Favorite {
   folder: string;
   addedAt: string;
 }
+
+export interface Law {
+  pcode: string;
+  law_name: string;
+  law_level: string;
+  law_category: string;
+  law_url: string;
+  modified_date: string;
+  effective_date: string;
+  effective_note: string;
+  is_abolished: boolean;
+  has_eng_version: boolean;
+  eng_law_name: string;
+  law_foreword: string;
+  law_histories: string;
+}
+
+export interface LawArticle {
+  article_type: 'A' | 'C';
+  article_no: string;
+  article_no_normalized: string;
+  ordinal: number;
+  article_content: string;
+}
+
+export interface LawWithArticles extends Law {
+  articles: LawArticle[];
+}
+
+export interface LawsStatsResponse {
+  total_laws: number;
+  active_laws: number;
+  total_articles: number;
+  by_level: Array<{ level: string; count: number }>;
+}

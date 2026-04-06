@@ -20,13 +20,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`hidden md:flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-200 ${
+      className={`hidden md:flex flex-col bg-gray-50 dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transition-all duration-200 ${
         collapsed ? 'w-16' : 'w-60'
       }`}
     >
       {/* Logo */}
-      <NavLink to="/" className="flex items-center gap-2 px-4 h-14 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-        <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+      <NavLink to="/" className="flex items-center gap-2 px-4 h-14 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-indigo-50/80 to-transparent dark:from-indigo-950/30 dark:to-transparent hover:from-indigo-50 dark:hover:from-indigo-950/50 transition-all duration-200">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm shrink-0 shadow-sm">
           L
         </div>
         {!collapsed && (
@@ -37,39 +37,48 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </NavLink>
 
       {/* Nav */}
-      <nav className="flex-1 py-2">
+      <nav className="flex-1 py-3 px-2 space-y-0.5">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
+            title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                collapsed ? 'justify-center' : ''
+              } ${
                 isActive
-                  ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border-l-[3px] border-l-indigo-600 dark:border-l-indigo-400 -ml-0.5 pl-[10px]'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/70 hover:text-gray-700 dark:hover:text-gray-300'
               }`
             }
           >
-            <Icon size={20} className="shrink-0" />
-            {!collapsed && <span>{label}</span>}
+            {({ isActive }) => (
+              <>
+                <Icon size={20} className={`shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                {!collapsed && <span>{label}</span>}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
       {/* Bottom controls */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-2 space-y-1">
+      <div className="border-t border-gray-200 dark:border-gray-800 p-2 space-y-0.5">
         <button
           onClick={toggleTheme}
-          className="flex items-center gap-3 px-4 py-2.5 w-full rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          title={collapsed ? (theme === 'light' ? '深色模式' : '淺色模式') : undefined}
+          className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/70 hover:text-gray-700 dark:hover:text-gray-300 transition-all duration-200 ${collapsed ? 'justify-center' : ''}`}
         >
-          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          {theme === 'light' ? <Moon size={20} className="text-gray-400 dark:text-gray-500" /> : <Sun size={20} className="text-gray-400 dark:text-gray-500" />}
           {!collapsed && <span>{theme === 'light' ? '深色模式' : '淺色模式'}</span>}
         </button>
         <button
           onClick={onToggle}
-          className="flex items-center gap-3 px-4 py-2.5 w-full rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          title={collapsed ? '展開' : undefined}
+          className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/70 hover:text-gray-700 dark:hover:text-gray-300 transition-all duration-200 ${collapsed ? 'justify-center' : ''}`}
         >
-          {collapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
+          {collapsed ? <PanelLeft size={20} className="text-gray-400 dark:text-gray-500" /> : <PanelLeftClose size={20} className="text-gray-400 dark:text-gray-500" />}
           {!collapsed && <span>收合</span>}
         </button>
       </div>

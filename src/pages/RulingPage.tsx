@@ -62,15 +62,15 @@ function SectionNav({
   return (
     <>
       {/* Mobile: horizontal scrollable tabs */}
-      <div className="lg:hidden flex gap-1 overflow-x-auto pb-2 mb-4 -mx-1 px-1 scrollbar-thin">
+      <div className="lg:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1 scrollbar-thin">
         {sections.map((s) => (
           <button
             key={s.id}
             onClick={() => onJump(s.id)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
               activeId === s.id
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
             {s.title}
@@ -79,23 +79,23 @@ function SectionNav({
       </div>
 
       {/* Desktop: sticky sidebar */}
-      <nav className="hidden lg:block sticky top-6 space-y-1">
-        <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+      <nav className="hidden lg:block sticky top-6 space-y-0.5">
+        <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
           目錄
         </h3>
         {sections.map((s) => (
           <button
             key={s.id}
             onClick={() => onJump(s.id)}
-            className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+            className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
               activeId === s.id
-                ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium border-l-[3px] border-l-indigo-600 dark:border-l-indigo-400 -ml-0.5 pl-[10px]'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
           >
             <ChevronRight
               size={14}
-              className={activeId === s.id ? 'text-primary-500' : 'text-gray-300 dark:text-gray-600'}
+              className={activeId === s.id ? 'text-indigo-500' : 'text-gray-300 dark:text-gray-600'}
             />
             {s.title}
           </button>
@@ -128,40 +128,45 @@ function CitationsPanel({ jid, ruling }: { jid: string; ruling: Ruling }) {
         .then((r) => r.data),
   });
 
+  // Forward citations: API returns {results: [], total: N} or {citations: []}
   const forwardCitations: Citation[] = Array.isArray(forwardData?.citations)
     ? forwardData.citations
     : Array.isArray(forwardData?.results)
       ? forwardData.results
       : Array.isArray(forwardData) ? forwardData : [];
-  const reverseCitations: Citation[] = Array.isArray(reverseData?.citations)
-    ? reverseData.citations
-    : Array.isArray(reverseData?.results)
-      ? reverseData.results
-      : Array.isArray(reverseData) ? reverseData : [];
+
+  // Reverse citations: API only returns counts {total: N, formal: N}, not a list
+  const reverseTotal: number = reverseData?.total ?? 0;
 
   return (
     <div className="border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-      {/* Tabs */}
+      {/* Tabs - underline style */}
       <div className="flex border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setTab('forward')}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
             tab === 'forward'
-              ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
           }`}
         >
           引用判決 ({forwardLoading ? '...' : forwardCitations.length})
+          {tab === 'forward' && (
+            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+          )}
         </button>
         <button
           onClick={() => setTab('reverse')}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-all duration-200 relative ${
             tab === 'reverse'
-              ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
           }`}
         >
-          被引用 ({reverseLoading ? '...' : reverseCitations.length})
+          被引用 ({reverseLoading ? '...' : reverseTotal})
+          {tab === 'reverse' && (
+            <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+          )}
         </button>
       </div>
 
@@ -176,7 +181,7 @@ function CitationsPanel({ jid, ruling }: { jid: string; ruling: Ruling }) {
                 ))}
               </div>
             ) : forwardCitations.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">
+              <div className="p-6 text-center text-sm text-gray-400 dark:text-gray-500">
                 此判決未引用其他判決
               </div>
             ) : (
@@ -185,12 +190,12 @@ function CitationsPanel({ jid, ruling }: { jid: string; ruling: Ruling }) {
                   <li key={c.id ?? i}>
                     <Link
                       to={`/ruling/${encodeURIComponent(c.cited_full)}`}
-                      className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      className="flex items-center justify-between px-4 py-3 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all duration-200"
                     >
-                      <span className="text-gray-700 dark:text-gray-300">
+                      <span className="text-gray-600 dark:text-gray-300">
                         {c.cited_full}
                       </span>
-                      <ExternalLink size={14} className="text-gray-400 shrink-0 ml-2" />
+                      <ExternalLink size={14} className="text-gray-300 dark:text-gray-600 shrink-0 ml-2" />
                     </Link>
                   </li>
                 ))}
@@ -207,26 +212,19 @@ function CitationsPanel({ jid, ruling }: { jid: string; ruling: Ruling }) {
                   <Skeleton key={i} className="h-5 w-full" />
                 ))}
               </div>
-            ) : reverseCitations.length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">
+            ) : reverseTotal === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-400 dark:text-gray-500">
                 此判決尚未被其他判決引用
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-                {reverseCitations.map((c, i) => (
-                  <li key={c.id ?? i}>
-                    <Link
-                      to={`/ruling/${encodeURIComponent(c.from_jid)}`}
-                      className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                    >
-                      <span className="text-gray-700 dark:text-gray-300">
-                        {c.from_jid}
-                      </span>
-                      <ExternalLink size={14} className="text-gray-400 shrink-0 ml-2" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className="p-6 text-center">
+                <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {reverseTotal}
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  被引用 {reverseTotal} 次
+                </p>
+              </div>
             )}
           </>
         )}
@@ -279,10 +277,10 @@ function BookmarkButton({ ruling }: { ruling: Ruling }) {
           setShowFolders(!showFolders);
         }}
         title={saved ? '移除書籤' : '加入書籤（右鍵選擇資料夾）'}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
           saved
             ? 'bg-yellow-50 dark:bg-yellow-950 text-yellow-600 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800'
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+            : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
         }`}
       >
         <Star size={16} className={saved ? 'fill-current' : ''} />
@@ -290,7 +288,7 @@ function BookmarkButton({ ruling }: { ruling: Ruling }) {
       </button>
 
       {showFolders && folders.length > 0 && (
-        <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+        <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg py-1.5 z-10 min-w-[140px]">
           {folders.map((f) => (
             <button
               key={f}
@@ -304,7 +302,7 @@ function BookmarkButton({ ruling }: { ruling: Ruling }) {
                 });
                 setShowFolders(false);
               }}
-              className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="w-full text-left px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
             >
               {f}
             </button>
@@ -390,7 +388,7 @@ export default function RulingPage() {
   if (!jid) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <AlertCircle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <AlertCircle size={48} className="mx-auto text-gray-200 dark:text-gray-700 mb-4" />
         <p className="text-gray-500 dark:text-gray-400">無效的判決代號</p>
       </div>
     );
@@ -401,7 +399,7 @@ export default function RulingPage() {
       (error as { response?: { status?: number } })?.response?.status === 404;
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <AlertCircle size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+        <AlertCircle size={48} className="mx-auto text-gray-200 dark:text-gray-700 mb-4" />
         <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
           {is404 ? '找不到判決' : '載入失敗'}
         </h2>
@@ -412,7 +410,7 @@ export default function RulingPage() {
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+          className="inline-flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
         >
           <ArrowLeft size={16} />
           返回
@@ -426,7 +424,7 @@ export default function RulingPage() {
       {/* Back button */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4"
+        className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 mb-4 transition-colors"
       >
         <ArrowLeft size={16} />
         返回搜尋結果
@@ -441,33 +439,36 @@ export default function RulingPage() {
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Header card */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-4">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                {ruling.jtitle || ruling.jid}
-              </h1>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mb-4">
-                <span>{getCourtName(ruling.jcourt)}</span>
-                <span>{formatDate(ruling.jdate)}</span>
-                {ruling.jtype && <span>{ruling.jtype}</span>}
-              </div>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden mb-4">
+              <div className="h-1 bg-gradient-to-r from-indigo-500 to-violet-500" />
+              <div className="p-6">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  {ruling.jtitle || ruling.jid}
+                </h1>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-400 dark:text-gray-500 mb-4">
+                  <span>{getCourtName(ruling.jcourt)}</span>
+                  <span>{formatDate(ruling.jdate)}</span>
+                  {ruling.jtype && <span>{ruling.jtype}</span>}
+                </div>
 
-              {/* Action buttons */}
-              <div className="flex flex-wrap gap-2">
-                <BookmarkButton ruling={ruling} />
-                <button
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <Link2 size={16} />
-                  複製連結
-                </button>
-                <button
-                  onClick={downloadTxt}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <Download size={16} />
-                  下載全文
-                </button>
+                {/* Action buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <BookmarkButton ruling={ruling} />
+                  <button
+                    onClick={copyLink}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-200"
+                  >
+                    <Link2 size={16} />
+                    複製連結
+                  </button>
+                  <button
+                    onClick={downloadTxt}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-all duration-200"
+                  >
+                    <Download size={16} />
+                    下載全文
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -492,11 +493,11 @@ export default function RulingPage() {
                   className="mb-8 last:mb-0 scroll-mt-24"
                 >
                   {section.title !== '全文' && (
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
                       {section.title}
                     </h2>
                   )}
-                  <div className="text-[15px] leading-relaxed text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-[Georgia,'Noto Serif TC',serif]">
+                  <div className="text-[15px] leading-[1.9] text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-[Georgia,'Noto Serif TC',serif]">
                     {section.content}
                   </div>
                 </div>

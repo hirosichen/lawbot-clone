@@ -25,4 +25,10 @@ export const api = {
     cited_case: string;
     cited_no: string;
   }) => axios.get(`${API_BASE}/api/citations/reverse`, { params }),
+  getLawsStats: () => axios.get(`${API_BASE}/api/laws/stats`),
+  getLaws: (params: { q?: string; category?: string; level?: string; is_abolished?: string; page?: number; limit?: number }) =>
+    axios.get(`${API_BASE}/api/laws`, { params }),
+  getLaw: (pcode: string) => axios.get(`${API_BASE}/api/laws/${pcode}`),
+  getLawArticles: (pcode: string, params?: { article_no?: string; q?: string }) =>
+    axios.get(`${API_BASE}/api/laws/${pcode}/articles`, { params }),
 };

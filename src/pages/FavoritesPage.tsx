@@ -41,9 +41,12 @@ export default function FavoritesPage() {
   const filtered = useMemo(() => {
     let list = favorites;
 
+    // Apply folder filter: only when scope is 'current' and a folder is selected
     if (selectedFolder && searchScope === 'current') {
       list = list.filter((f) => f.folder === selectedFolder);
     }
+    // When scope is 'current' and no folder selected, show all (same as before)
+    // When scope is 'all', skip folder filtering entirely
 
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -58,10 +61,9 @@ export default function FavoritesPage() {
   }, [favorites, selectedFolder, searchQuery, searchScope]);
 
   const handleAddFolder = () => {
-    const name = newFolderName.trim();
-    if (name && !folders.includes(name)) {
-      // Create folder by selecting it (folders are implicit)
-      setSelectedFolder(name);
+    if (newFolderName.trim() && !folders.includes(newFolderName.trim())) {
+      // Folders are created implicitly when a favorite is moved to them.
+      // We just close the dialog; user can now move items to this folder.
       setShowNewFolder(false);
       setNewFolderName('');
     }
@@ -73,22 +75,23 @@ export default function FavoritesPage() {
   };
 
   const handleSearch = () => {
-    // Search is already reactive via the filtered memo
+    // Search is already reactive via the filtered memo,
+    // this handler is for the explicit search button click
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-1">
-        <Bookmark size={24} className="text-primary-600" />
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">我的書籤</h1>
+        <Bookmark size={24} className="text-indigo-600 dark:text-indigo-400" />
+        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">我的書籤</h1>
       </div>
       {selectedFolder && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 ml-9">
+        <p className="text-sm text-gray-400 dark:text-gray-500 mb-4 ml-9">
           顯示 {selectedFolder} 中的書籤項目
         </p>
       )}
       {!selectedFolder && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 ml-9">
+        <p className="text-sm text-gray-400 dark:text-gray-500 mb-4 ml-9">
           顯示所有書籤項目
         </p>
       )}
@@ -100,12 +103,8 @@ export default function FavoritesPage() {
             <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">資料夾</span>
               <button
-                onClick={() => {
-                  setShowNewFolder(true);
-                  setNewFolderName('');
-                }}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 cursor-pointer"
-                title="新增資料夾"
+                onClick={() => setShowNewFolder(true)}
+                className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 cursor-pointer transition-all duration-200"
               >
                 <Plus size={16} />
               </button>
@@ -126,23 +125,17 @@ export default function FavoritesPage() {
                     }
                   }}
                   placeholder="資料夾名稱"
-                  className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="flex-1 px-2 py-1 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
                 <button
                   onClick={handleAddFolder}
                   disabled={!newFolderName.trim() || folders.includes(newFolderName.trim())}
-                  className="p-1 text-primary-600 hover:text-primary-700 disabled:text-gray-300 dark:disabled:text-gray-600 cursor-pointer disabled:cursor-not-allowed"
+                  className="p-1 text-indigo-600 hover:text-indigo-700 disabled:text-gray-300 dark:disabled:text-gray-600 cursor-pointer disabled:cursor-not-allowed"
                   title="確認"
                 >
                   <Check size={14} />
                 </button>
-                <button
-                  onClick={() => {
-                    setShowNewFolder(false);
-                    setNewFolderName('');
-                  }}
-                  className="p-1 text-gray-400 cursor-pointer"
-                >
+                <button onClick={() => { setShowNewFolder(false); setNewFolderName(''); }} className="p-1 text-gray-400 cursor-pointer">
                   <X size={14} />
                 </button>
               </div>
@@ -150,35 +143,31 @@ export default function FavoritesPage() {
 
             <button
               onClick={() => setSelectedFolder(null)}
-              className={`w-full text-left px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-colors ${
+              className={`w-full text-left px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-all duration-200 ${
                 selectedFolder === null
-                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-medium border-l-[3px] border-l-indigo-600 dark:border-l-indigo-400'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
               <span>全部</span>
-              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                {favorites.length}
-              </span>
+              <span className="text-xs text-gray-400">{favorites.length}</span>
             </button>
 
             {folders.map((folder) => (
               <button
                 key={folder}
                 onClick={() => setSelectedFolder(folder)}
-                className={`w-full text-left px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-colors ${
+                className={`w-full text-left px-3 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-all duration-200 ${
                   selectedFolder === folder
-                    ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 font-medium border-l-[3px] border-l-indigo-600 dark:border-l-indigo-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <FolderOpen size={14} />
+                  <FolderOpen size={14} className="text-gray-400 dark:text-gray-500" />
                   {folder}
                 </span>
-                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  {folderCounts[folder] || 0}
-                </span>
+                <span className="text-xs text-gray-400">{folderCounts[folder] || 0}</span>
               </button>
             ))}
           </div>
@@ -196,20 +185,20 @@ export default function FavoritesPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="搜尋書籤..."
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 text-sm shadow-sm transition-all duration-200"
               />
             </div>
             <select
               value={searchScope}
               onChange={(e) => setSearchScope(e.target.value as SearchScope)}
-              className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 shrink-0"
+              className="text-sm border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 shrink-0 shadow-sm"
             >
               <option value="current">僅當前資料夾</option>
               <option value="all">全部資料夾</option>
             </select>
             <button
               onClick={handleSearch}
-              className="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shrink-0"
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-all duration-200 shrink-0 shadow-sm"
             >
               搜尋
             </button>
@@ -217,7 +206,7 @@ export default function FavoritesPage() {
 
           {filtered.length === 0 ? (
             <div className="text-center py-20">
-              <Bookmark size={40} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+              <Bookmark size={40} className="mx-auto text-gray-200 dark:text-gray-700 mb-4" />
               <p className="text-gray-500 dark:text-gray-400">
                 {favorites.length === 0
                   ? '還沒有書籤，去搜尋頁面收藏判決吧！'
@@ -226,7 +215,7 @@ export default function FavoritesPage() {
               {favorites.length === 0 && (
                 <Link
                   to="/search"
-                  className="inline-block mt-4 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
+                  className="inline-block mt-4 px-5 py-2 rounded-full bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-all duration-200 shadow-sm"
                 >
                   前往搜尋
                 </Link>
@@ -237,17 +226,17 @@ export default function FavoritesPage() {
               {filtered.map((fav) => (
                 <div
                   key={fav.jid}
-                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 hover:shadow-md transition-shadow"
+                  className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 border-l-[3px] border-l-indigo-500 dark:border-l-indigo-400 p-5 hover:shadow-md transition-all duration-200"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/ruling/${encodeURIComponent(fav.jid)}`}
-                        className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:underline"
+                        className="font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline transition-colors"
                       >
                         {fav.title}
                       </Link>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-sm text-gray-400 dark:text-gray-500">
                         <span>{fav.court}</span>
                         <span>{fav.date}</span>
                         <span className="text-xs">
@@ -256,25 +245,25 @@ export default function FavoritesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-0.5 shrink-0">
                       {/* Move folder */}
                       <div className="relative">
                         <button
                           onClick={() => setMoveTarget(moveTarget === fav.jid ? null : fav.jid)}
-                          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+                          className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 cursor-pointer transition-all duration-200"
                           title="移動到資料夾"
                         >
                           <MoveRight size={16} />
                         </button>
                         {moveTarget === fav.jid && (
-                          <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 py-1">
+                          <div className="absolute right-0 top-full mt-1.5 w-40 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-10 py-1.5 overflow-hidden">
                             {folders.map((folder) => (
                               <button
                                 key={folder}
                                 onClick={() => handleMove(fav.jid, folder)}
-                                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
+                                className={`w-full text-left px-3 py-1.5 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer transition-colors ${
                                   fav.folder === folder
-                                    ? 'text-primary-600 font-medium'
+                                    ? 'text-indigo-600 dark:text-indigo-400 font-medium'
                                     : 'text-gray-700 dark:text-gray-300'
                                 }`}
                               >
@@ -288,7 +277,7 @@ export default function FavoritesPage() {
                       {/* Delete */}
                       <button
                         onClick={() => removeFavorite(fav.jid)}
-                        className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 cursor-pointer"
+                        className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-300 dark:text-gray-600 hover:text-red-500 cursor-pointer transition-all duration-200"
                         title="刪除書籤"
                       >
                         <Trash2 size={16} />

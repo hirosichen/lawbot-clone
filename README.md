@@ -4,6 +4,19 @@
 
 ## 更新紀錄
 
+### 2026-04-06 (v4 - 多團隊功能合併)
+- 首頁：法規數/條文數改為 API 動態查詢（LawsStatsResponse），新增常用法律連結（公寓大廈管理條例、洗錢防制法、貪污治罪條例）
+- 搜尋頁：HighlightText 支援多詞分割高亮、新增 jtitle badge/法院名稱/語意相似度 badge/section badge、空白狀態加入搜尋提示
+- 判決頁：修正反向引用改為計數顯示（被引用 N 次），避免 API 不回傳列表的問題
+- 聊天頁：建議卡片加入 emoji 圖示與漸層背景、對話中顯示「新對話」按鈕、輸入框 sticky bottom
+- 書籤頁：新增資料夾自動 focus、Escape 關閉、確認按鈕（Check icon）
+- 案件管理：刪除改用 styled 確認對話框（取代 window.confirm）、時間顯示改用 relativeTime
+- 歷史紀錄：時間顯示改用 relativeTime（utils/time.ts）、空白狀態加入「開始新對話」按鈕
+- UI 設計：team-design 團隊的精緻化樣式（漸層 hero、磨砂卡片、圓角按鈕、動畫過場等）
+
+### 2026-04-06 (v3 - UI 設計升級)
+- team-design 團隊套用全站精緻化 UI 樣式
+
 ### 2026-04-06 (v2 - 功能遷移)
 - 新增 AI 問答聊天頁面 `/chat`、`/chat/:id`（含法學資料引用、延伸問題、代理模式）
 - 新增案件管理頁面 `/project`、`/project/:id`（CRUD、搜尋）
