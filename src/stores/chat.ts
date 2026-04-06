@@ -115,12 +115,30 @@ function getStableStreamingSnapshot(): StreamingState {
   return cachedStreamingState;
 }
 
+// --------------- Chat Options ---------------
+
+export interface ChatSettings {
+  docTypes: string[]; // ['all'] or ['law', 'ruling', ...]
+  dateFrom: number;
+  dateTo: number;
+  format: 'format1' | 'format2';
+}
+
+export interface ChatOptions {
+  settings?: ChatSettings;
+  webSearch?: boolean;
+  thinkLonger?: boolean;
+  deepExplore?: boolean;
+  projectContext?: string;
+}
+
 // --------------- Real API streaming ---------------
 
 async function streamChatResponse(
   conversationId: string,
   message: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  options?: ChatOptions,
 ): Promise<void> {
   // Reset streaming state
   streamingConvId = conversationId;
@@ -137,6 +155,11 @@ async function streamChatResponse(
     body: JSON.stringify({
       message,
       conversationHistory: history.slice(-6),
+      ...(options?.settings && { settings: options.settings }),
+      ...(options?.webSearch && { webSearch: true }),
+      ...(options?.thinkLonger && { thinkLonger: true }),
+      ...(options?.deepExplore && { deepExplore: true }),
+      ...(options?.projectContext && { projectContext: options.projectContext }),
     }),
   });
 
@@ -307,13 +330,13 @@ export function useConversations() {
   }, []);
 
   const sendMessage = useCallback(
-    async (conversationId: string, message: string) => {
+    async (conversationId: string, message: string, options?: ChatOptions) => {
       const conv = getSnapshot().find((c) => c.id === conversationId);
       const history = (conv?.messages || []).map((m) => ({
         role: m.role,
         content: m.content,
       }));
-      await streamChatResponse(conversationId, message, history);
+      await streamChatResponse(conversationId, message, history, options);
     },
     [],
   );

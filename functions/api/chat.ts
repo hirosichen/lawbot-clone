@@ -8,6 +8,16 @@ interface Env {
 interface ChatRequest {
   message: string;
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  settings?: {
+    docTypes?: string[];
+    dateFrom?: number;
+    dateTo?: number;
+    format?: string;
+  };
+  webSearch?: boolean;
+  thinkLonger?: boolean;
+  deepExplore?: boolean;
+  projectContext?: string;
 }
 
 const LAW_API = 'https://law-api.onlymake.ai';
@@ -35,8 +45,8 @@ interface LawArticle {
 
 interface Reference {
   label: string;
-  type: 'law' | 'ruling';
-  link: string; // frontend route: /ruling/xxx or /law/xxx
+  type: 'law' | 'ruling' | 'web';
+  link: string; // frontend route: /ruling/xxx or /law/xxx, or external URL for web
 }
 
 // --- Extract law references from ruling text ---
@@ -133,11 +143,50 @@ async function fetchLawArticles(refs: ExtractedLawRef[]): Promise<Array<{ lawNam
   return results;
 }
 
+// --- Exa Web Search ---
+
+interface ExaResult {
+  title: string;
+  url: string;
+  text: string;
+}
+
+async function exaSearch(query: string): Promise<ExaResult[]> {
+  try {
+    const res = await fetch('https://api.exa.ai/search', {
+      method: 'POST',
+      headers: {
+        'x-api-key': 'd3004fb1-5e80-4836-9c74-6a95131de28a',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query + ' 台灣法律',
+        type: 'auto',
+        numResults: 3,
+        contents: {
+          text: { maxCharacters: 500 },
+          highlights: { maxCharacters: 300 },
+        },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { results?: Array<{ title?: string; url?: string; text?: string; highlights?: string[] }> };
+    return (data.results || []).map(r => ({
+      title: r.title || '',
+      url: r.url || '',
+      text: r.text || r.highlights?.[0] || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // --- RAG Retrieval ---
 
-async function semanticSearch(query: string): Promise<SemanticResult[]> {
+async function semanticSearch(query: string, limit = 5): Promise<SemanticResult[]> {
   try {
-    const url = `${LAW_API}/api/semantic-search?q=${encodeURIComponent(query)}&limit=5&probes=3`;
+    const url = `${LAW_API}/api/semantic-search?q=${encodeURIComponent(query)}&limit=${limit}&probes=3`;
     const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (!res.ok) return [];
     const data = await res.json() as { results?: SemanticResult[] };
@@ -260,6 +309,7 @@ function buildRulingId(r: SemanticResult): string {
 function buildContext(
   rulings: SemanticResult[],
   laws: Array<{ lawName: string; pcode: string; articles: LawArticle[] }>,
+  webResults?: ExaResult[],
 ): string {
   const parts: string[] = [];
 
@@ -284,6 +334,17 @@ function buildContext(
       parts.push(`[判${i + 1}] ${r.jtitle} - ${id}（相似度 ${score}%）`);
       if (r.section) parts.push(`  段落：${r.section}`);
       if (r.chunk_text) parts.push(`  內容摘要：${clean(r.chunk_text).slice(0, 300)}`);
+      parts.push('');
+    });
+  }
+
+  // Web search results
+  if (webResults && webResults.length > 0) {
+    parts.push('\n【網路搜尋結果】');
+    webResults.forEach((w, i) => {
+      parts.push(`[網${i + 1}] ${w.title}`);
+      parts.push(`  來源：${w.url}`);
+      parts.push(`  內容：${clean(w.text)}`);
       parts.push('');
     });
   }
@@ -348,14 +409,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const body = await request.json() as ChatRequest;
-    const { message, conversationHistory = [] } = body;
+    const { message, conversationHistory = [], settings, webSearch, thinkLonger, deepExplore, projectContext } = body;
 
     if (!message?.trim()) {
       return Response.json({ error: 'Message is required' }, { status: 400, headers });
     }
 
-    // Step 1: Semantic search → find top 5 similar rulings
-    const rulings = await semanticSearch(message);
+    // Step 1: Semantic search + optional web search in parallel
+    const searchLimit = deepExplore ? 10 : 5;
+    const searchPromises: [Promise<SemanticResult[]>, Promise<ExaResult[]>] = [
+      semanticSearch(message, searchLimit),
+      webSearch ? exaSearch(message) : Promise.resolve([]),
+    ];
+    const [rulings, webResults] = await Promise.all(searchPromises);
 
     // Step 2: Extract law references from ruling chunks + user query
     const allText = [
@@ -366,14 +432,22 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // Step 3: Fetch actual law article content for extracted references
     // Also include any laws explicitly mentioned in user's question
-    const [extractedLaws, queryLaws] = await Promise.all([
+    // When deepExplore is on, also do keyword search for additional results
+    const lawFetches: Promise<Array<{ lawName: string; pcode: string; articles: LawArticle[] }>>[] = [
       fetchLawArticles(extractedRefs),
       searchLawArticles(message),
-    ]);
+    ];
+    if (deepExplore) {
+      // Additional keyword-based search for broader coverage
+      lawFetches.push(searchLawArticles(message.split(/[，。？！,.\s]+/).slice(0, 3).join(' ')));
+    }
+    const lawResults = await Promise.all(lawFetches);
+    const [extractedLaws, queryLaws, ...extraLaws] = lawResults;
 
     // Merge laws (avoid duplicates)
     const lawMap = new Map<string, { lawName: string; pcode: string; articles: LawArticle[] }>();
-    for (const law of [...extractedLaws, ...queryLaws]) {
+    const allLawSources = [...extractedLaws, ...queryLaws, ...extraLaws.flat()];
+    for (const law of allLawSources) {
       const existing = lawMap.get(law.pcode);
       if (existing) {
         const existingNos = new Set(existing.articles.map(a => a.article_no));
@@ -386,25 +460,63 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     const laws = Array.from(lawMap.values());
 
-    const contextText = buildContext(rulings, laws);
+    const contextText = buildContext(rulings, laws, webResults.length > 0 ? webResults : undefined);
     const references = buildReferences(rulings, laws);
+
+    // Add web references
+    for (const w of webResults) {
+      if (w.title && w.url) {
+        references.push({ label: w.title, type: 'web' as const, link: w.url });
+      }
+    }
+
     const followUps = generateFollowUps(message, laws.length > 0, rulings.length > 0);
 
     // Step 2: Build prompt
-    const systemContent = [
-      '你是台灣法律AI助手。根據以下檢索到的判決和法條，回答使用者的法律問題。',
-      '',
-      '回答規則：',
-      '- 繁體中文回答',
-      '- 引用法條標記 [法N]，引用判決標記 [判N]，N 對應下方資料編號',
-      '- 使用 **粗體** 標示重點，用編號列表整理論點',
-      '- 結構：先法律依據 → 再實務見解 → 最後具體建議',
-      '- 務必引用下方提供的判決字號，讓使用者能查閱原文',
-      '- 不要編造不存在的法條或判決',
-      '- 結尾加上免責聲明',
-      '',
-      contextText || '（目前未檢索到直接相關資料，請根據法律知識回答，並提醒使用者查閱具體法條。）',
-    ].join('\n');
+    const systemParts: string[] = [];
+
+    // Project context
+    if (projectContext?.trim()) {
+      systemParts.push(`以下是使用者正在處理的案件資料：${projectContext.trim()}`);
+      systemParts.push('');
+    }
+
+    systemParts.push('你是台灣法律AI助手。根據以下檢索到的判決和法條，回答使用者的法律問題。');
+    systemParts.push('');
+
+    // Settings-based instructions
+    if (settings?.docTypes && settings.docTypes.length > 0 && !settings.docTypes.includes('all')) {
+      const typeLabels: Record<string, string> = {
+        law: '法條', ruling: '判決', interpretation: '函釋', regulation: '行政規則',
+      };
+      const labels = settings.docTypes.map(t => typeLabels[t] || t).join('、');
+      systemParts.push(`使用者只關注以下類型的資料：${labels}`);
+    }
+    if (settings?.dateFrom || settings?.dateTo) {
+      const from = settings.dateFrom || '不限';
+      const to = settings.dateTo || '不限';
+      systemParts.push(`使用者只關注 ${from}-${to} 年間的資料`);
+    }
+    if (settings?.format) {
+      systemParts.push(`請使用以下書狀格式回答：${settings.format}`);
+    }
+
+    systemParts.push('');
+    systemParts.push('回答規則：');
+    systemParts.push('- 繁體中文回答');
+    systemParts.push('- 引用法條標記 [法N]，引用判決標記 [判N]，N 對應下方資料編號');
+    if (webResults.length > 0) {
+      systemParts.push('- 引用網路搜尋結果標記 [網N]，N 對應下方資料編號');
+    }
+    systemParts.push('- 使用 **粗體** 標示重點，用編號列表整理論點');
+    systemParts.push('- 結構：先法律依據 → 再實務見解 → 最後具體建議');
+    systemParts.push('- 務必引用下方提供的判決字號，讓使用者能查閱原文');
+    systemParts.push('- 不要編造不存在的法條或判決');
+    systemParts.push('- 結尾加上免責聲明');
+    systemParts.push('');
+    systemParts.push(contextText || '（目前未檢索到直接相關資料，請根據法律知識回答，並提醒使用者查閱具體法條。）');
+
+    const systemContent = systemParts.join('\n');
 
     const aiMessages = [
       { role: 'system' as const, content: systemContent },
@@ -422,7 +534,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const aiStream = await env.AI.run('@cf/qwen/qwen3-30b-a3b-fp8', {
       messages: aiMessages,
       stream: true,
-      max_tokens: 2048,
+      max_tokens: thinkLonger ? 4096 : 2048,
       temperature: 0.6,
     });
 

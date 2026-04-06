@@ -8,7 +8,6 @@ import {
   ThumbsDown,
   RefreshCw,
   Share2,
-  Settings,
   Plus,
   FileText,
   X,
@@ -16,9 +15,17 @@ import {
   Zap,
   Loader2,
   MessageSquarePlus,
+  SlidersHorizontal,
+  Upload,
+  Brain,
+  Compass,
+  Bot,
+  Globe,
+  FolderOpen,
 } from 'lucide-react';
 import { useConversations, useStreamingState } from '../stores/chat';
-import type { ChatMessage, ChatReference } from '../stores/chat';
+import type { ChatMessage, ChatReference, ChatSettings, ChatOptions } from '../stores/chat';
+import { useProjects } from '../stores/projects';
 
 // --------------- Helpers ---------------
 
@@ -319,7 +326,392 @@ const SUGGESTION_META = [
   { emoji: '\u{1F4F1}', gradient: 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20', border: 'border-green-200 dark:border-green-800' },
 ];
 
+// --------------- Settings Panel ---------------
+
+const DOC_TYPE_OPTIONS = [
+  { value: 'all', label: '全部' },
+  { value: 'law', label: '法律' },
+  { value: 'ruling', label: '裁判' },
+  { value: 'constitutional', label: '憲法法庭' },
+  { value: 'interpretation', label: '司法解釋' },
+  { value: 'resolution', label: '決議' },
+  { value: 'legalQuestion', label: '法律問題' },
+  { value: 'letter', label: '函釋' },
+];
+
+function SettingsPanel({
+  settings,
+  onSettingsChange,
+  onClose,
+}: {
+  settings: ChatSettings;
+  onSettingsChange: (s: ChatSettings) => void;
+  onClose: () => void;
+}) {
+  const [local, setLocal] = useState<ChatSettings>({ ...settings });
+
+  const handleDocTypeToggle = (value: string) => {
+    if (value === 'all') {
+      setLocal((s) => ({
+        ...s,
+        docTypes: s.docTypes.includes('all') ? [] : ['all'],
+      }));
+    } else {
+      setLocal((s) => {
+        const without = s.docTypes.filter((d) => d !== 'all' && d !== value);
+        const has = s.docTypes.includes(value);
+        const next = has ? without : [...without, value];
+        return { ...s, docTypes: next.length === 0 ? ['all'] : next };
+      });
+    }
+  };
+
+  const handleReset = () => {
+    const defaults: ChatSettings = {
+      docTypes: ['all'],
+      dateFrom: 1945,
+      dateTo: 2026,
+      format: 'format1',
+    };
+    setLocal(defaults);
+    onSettingsChange(defaults);
+  };
+
+  const handleClose = () => {
+    onSettingsChange(local);
+    onClose();
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300"
+        onClick={handleClose}
+      />
+      {/* Panel */}
+      <div className="fixed top-0 right-0 h-full w-80 max-w-[90vw] bg-white dark:bg-gray-950 border-l border-gray-200 dark:border-gray-800 shadow-2xl z-50 animate-slide-in-right overflow-y-auto">
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">AI 自定義</h3>
+            <button
+              onClick={handleClose}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Doc types */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">文件類型</p>
+            <div className="grid grid-cols-2 gap-2">
+              {DOC_TYPE_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      opt.value === 'all'
+                        ? local.docTypes.includes('all')
+                        : local.docTypes.includes(opt.value)
+                    }
+                    onChange={() => handleDocTypeToggle(opt.value)}
+                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-800"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Date range */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">日期範圍</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">從</label>
+                <input
+                  type="number"
+                  value={local.dateFrom}
+                  onChange={(e) => setLocal((s) => ({ ...s, dateFrom: Number(e.target.value) }))}
+                  min={1945}
+                  max={local.dateTo}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400"
+                />
+              </div>
+              <span className="text-gray-400 mt-5">~</span>
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">到</label>
+                <input
+                  type="number"
+                  value={local.dateTo}
+                  onChange={(e) => setLocal((s) => ({ ...s, dateTo: Number(e.target.value) }))}
+                  min={local.dateFrom}
+                  max={2026}
+                  className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/20 focus:border-indigo-400"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Format */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">書狀格式</p>
+            <div className="space-y-2">
+              <label className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors">
+                <input
+                  type="radio"
+                  name="format"
+                  checked={local.format === 'format1'}
+                  onChange={() => setLocal((s) => ({ ...s, format: 'format1' }))}
+                  className="mt-0.5 border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">格式一 (預設)</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    壹、大標題 → 一、中標題 → (一)小標題 → 1.細項
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-colors">
+                <input
+                  type="radio"
+                  name="format"
+                  checked={local.format === 'format2'}
+                  onChange={() => setLocal((s) => ({ ...s, format: 'format2' }))}
+                  className="mt-0.5 border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">格式二</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    大標題無編號 → 一、中標題 → (一)小標題 → 1.細項
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-gray-800">
+            <button
+              onClick={handleReset}
+              className="flex-1 px-4 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-200"
+            >
+              重設條件
+            </button>
+            <button
+              onClick={handleClose}
+              className="flex-1 px-4 py-2 rounded-xl text-sm font-medium text-white bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 transition-all duration-200 shadow-sm"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// --------------- Plus Menu Dropdown ---------------
+
+function PlusMenuDropdown({
+  features,
+  agentEnabled,
+  onToggleFeature,
+  onToggleAgent,
+  onClose,
+}: {
+  features: { thinkLonger: boolean; deepExplore: boolean; webSearch: boolean };
+  agentEnabled: boolean;
+  onToggleFeature: (key: 'thinkLonger' | 'deepExplore' | 'webSearch') => void;
+  onToggleAgent: () => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const items = [
+    {
+      icon: <Upload size={15} />,
+      label: '上傳附件',
+      active: false,
+      action: () => {
+        alert('即將推出');
+        onClose();
+      },
+    },
+    {
+      icon: <Brain size={15} />,
+      label: '思考更長時間',
+      active: features.thinkLonger,
+      action: () => onToggleFeature('thinkLonger'),
+    },
+    {
+      icon: <Compass size={15} />,
+      label: '深度探索',
+      active: features.deepExplore,
+      action: () => onToggleFeature('deepExplore'),
+    },
+    {
+      icon: <Bot size={15} />,
+      label: 'AI 代理',
+      active: agentEnabled,
+      action: onToggleAgent,
+    },
+    {
+      icon: <Globe size={15} />,
+      label: '網路搜尋',
+      active: features.webSearch,
+      action: () => onToggleFeature('webSearch'),
+    },
+  ];
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full left-0 mb-2 w-52 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 py-1 animate-fade-in"
+    >
+      {items.map((item) => (
+        <button
+          key={item.label}
+          onClick={item.action}
+          className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors ${
+            item.active
+              ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          {item.icon}
+          <span className="flex-1 text-left">{item.label}</span>
+          {item.active && (
+            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// --------------- Project Dropdown ---------------
+
+function ProjectDropdown({
+  selectedProjectId,
+  onSelect,
+  onClose,
+}: {
+  selectedProjectId: string | null;
+  onSelect: (project: { id: string; title: string; facts: string; notes: string } | null) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { projects } = useProjects();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full left-0 mb-2 w-60 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 py-1 animate-fade-in max-h-64 overflow-y-auto"
+    >
+      {selectedProjectId && (
+        <button
+          onClick={() => {
+            onSelect(null);
+            onClose();
+          }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <X size={15} />
+          取消選取
+        </button>
+      )}
+      {projects.length === 0 && (
+        <p className="px-3.5 py-2 text-xs text-gray-400 dark:text-gray-500">尚無專案</p>
+      )}
+      {projects.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => {
+            onSelect({ id: p.id, title: p.title, facts: p.facts, notes: p.notes });
+            onClose();
+          }}
+          className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm transition-colors ${
+            selectedProjectId === p.id
+              ? 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+          }`}
+        >
+          <FolderOpen size={15} className="shrink-0" />
+          <span className="truncate text-left">{p.title}</span>
+        </button>
+      ))}
+      <div className="border-t border-gray-100 dark:border-gray-800 mt-1 pt-1">
+        <button
+          onClick={() => {
+            onClose();
+            navigate('/project');
+          }}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+        >
+          <Plus size={15} />
+          新增專案
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --------------- Pill Badge ---------------
+
+function PillBadge({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+      {label}
+      <button
+        onClick={onRemove}
+        className="p-0.5 rounded hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+      >
+        <X size={10} />
+      </button>
+    </span>
+  );
+}
+
 // --------------- Main Page ---------------
+
+const DEFAULT_SETTINGS: ChatSettings = {
+  docTypes: ['all'],
+  dateFrom: 1945,
+  dateTo: 2026,
+  format: 'format1',
+};
 
 export default function ChatPage() {
   const { id } = useParams<{ id?: string }>();
@@ -337,6 +729,23 @@ export default function ChatPage() {
   const [agentEnabled, setAgentEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // New state for toolbar features
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const [chatSettings, setChatSettings] = useState<ChatSettings>({ ...DEFAULT_SETTINGS });
+  const [features, setFeatures] = useState({
+    thinkLonger: false,
+    deepExplore: false,
+    webSearch: false,
+  });
+  const [selectedProject, setSelectedProject] = useState<{
+    id: string;
+    title: string;
+    facts: string;
+    notes: string;
+  } | null>(null);
 
   const conversation = id ? getConversation(id) : null;
   const messages = conversation?.messages ?? [];
@@ -357,6 +766,30 @@ export default function ChatPage() {
     }
   }, [input]);
 
+  const buildChatOptions = useCallback((): ChatOptions => {
+    const opts: ChatOptions = {};
+    // Only include settings if not default
+    const s = chatSettings;
+    if (
+      JSON.stringify(s.docTypes) !== '["all"]' ||
+      s.dateFrom !== 1945 ||
+      s.dateTo !== 2026 ||
+      s.format !== 'format1'
+    ) {
+      opts.settings = s;
+    }
+    if (features.webSearch) opts.webSearch = true;
+    if (features.thinkLonger) opts.thinkLonger = true;
+    if (features.deepExplore) opts.deepExplore = true;
+    if (selectedProject) {
+      const parts: string[] = [];
+      if (selectedProject.facts) parts.push(`案件事實: ${selectedProject.facts}`);
+      if (selectedProject.notes) parts.push(`筆記: ${selectedProject.notes}`);
+      opts.projectContext = parts.join('\n\n');
+    }
+    return opts;
+  }, [chatSettings, features, selectedProject]);
+
   const handleSend = useCallback(
     async (text?: string) => {
       const content = (text ?? input).trim();
@@ -365,15 +798,17 @@ export default function ChatPage() {
       setInput('');
       setIsLoading(true);
 
+      const options = buildChatOptions();
+
       try {
         if (isNewChat) {
           const title = content.length > 40 ? content.slice(0, 40) + '...' : content;
           const conv = createConversation(title, content);
           navigate(`/chat/${conv.id}`, { replace: true });
-          await sendMessage(conv.id, content);
+          await sendMessage(conv.id, content, options);
         } else if (id) {
           addUserMessage(id, content);
-          await sendMessage(id, content);
+          await sendMessage(id, content, options);
         }
       } catch (err) {
         console.error('Chat error:', err);
@@ -381,7 +816,7 @@ export default function ChatPage() {
         setIsLoading(false);
       }
     },
-    [input, isLoading, isNewChat, id, createConversation, addUserMessage, sendMessage, navigate],
+    [input, isLoading, isNewChat, id, createConversation, addUserMessage, sendMessage, navigate, buildChatOptions],
   );
 
   const handleNewChat = () => {
@@ -394,6 +829,29 @@ export default function ChatPage() {
       handleSend();
     }
   };
+
+  const toggleFeature = (key: 'thinkLonger' | 'deepExplore' | 'webSearch') => {
+    setFeatures((f) => ({ ...f, [key]: !f[key] }));
+  };
+
+  // Active feature pills data
+  const activePills: { key: string; label: string; onRemove: () => void }[] = [];
+  if (features.thinkLonger) {
+    activePills.push({ key: 'think', label: '思考更長', onRemove: () => toggleFeature('thinkLonger') });
+  }
+  if (features.deepExplore) {
+    activePills.push({ key: 'explore', label: '深度探索', onRemove: () => toggleFeature('deepExplore') });
+  }
+  if (features.webSearch) {
+    activePills.push({ key: 'web', label: '網路搜尋', onRemove: () => toggleFeature('webSearch') });
+  }
+  if (selectedProject) {
+    activePills.push({
+      key: 'project',
+      label: selectedProject.title,
+      onRemove: () => setSelectedProject(null),
+    });
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -492,25 +950,72 @@ export default function ChatPage() {
               className="w-full px-5 pt-4 pb-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm resize-none focus:outline-none"
             />
 
+            {/* Active feature pills */}
+            {activePills.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 px-4 pb-1">
+                {activePills.map((p) => (
+                  <PillBadge key={p.key} label={p.label} onRemove={p.onRemove} />
+                ))}
+              </div>
+            )}
+
             {/* Toolbar */}
             <div className="flex items-center justify-between px-3 pb-2.5">
               <div className="flex items-center gap-0.5">
+                {/* Settings button */}
                 <button
+                  onClick={() => setShowSettings(true)}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
                   title="設定"
                 >
-                  <Settings size={16} />
+                  <SlidersHorizontal size={16} />
                 </button>
-                <button
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
-                  title="附加"
-                >
-                  <Plus size={16} />
-                </button>
-                <button className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200">
-                  <FileText size={13} />
-                  選取案件
-                </button>
+
+                {/* Plus button */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowPlusMenu((v) => !v);
+                      setShowProjectMenu(false);
+                    }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
+                    title="附加"
+                  >
+                    <Plus size={16} />
+                  </button>
+                  {showPlusMenu && (
+                    <PlusMenuDropdown
+                      features={features}
+                      agentEnabled={agentEnabled}
+                      onToggleFeature={toggleFeature}
+                      onToggleAgent={() => setAgentEnabled((v) => !v)}
+                      onClose={() => setShowPlusMenu(false)}
+                    />
+                  )}
+                </div>
+
+                {/* Project selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowProjectMenu((v) => !v);
+                      setShowPlusMenu(false);
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-200/50 dark:hover:bg-gray-800 transition-all duration-200"
+                  >
+                    <FolderOpen size={13} />
+                    選取案件
+                  </button>
+                  {showProjectMenu && (
+                    <ProjectDropdown
+                      selectedProjectId={selectedProject?.id ?? null}
+                      onSelect={(p) => setSelectedProject(p)}
+                      onClose={() => setShowProjectMenu(false)}
+                    />
+                  )}
+                </div>
+
+                {/* Agent toggle pill */}
                 <div className="flex items-center gap-1 ml-1">
                   <button
                     onClick={() => setAgentEnabled(!agentEnabled)}
@@ -549,6 +1054,15 @@ export default function ChatPage() {
           </p>
         </div>
       </div>
+
+      {/* Settings panel overlay */}
+      {showSettings && (
+        <SettingsPanel
+          settings={chatSettings}
+          onSettingsChange={setChatSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }
