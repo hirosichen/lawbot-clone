@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Bookmark, Sun, Moon } from 'lucide-react';
+import { MessageSquare, FolderOpen, Search, Bookmark, Clock, Sun, Moon } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { useTheme } from './ThemeProvider';
 
 const mobileNavItems = [
-  { to: '/', icon: Home, label: '首頁' },
+  { to: '/chat', icon: MessageSquare, label: 'AI 問答' },
+  { to: '/project', icon: FolderOpen, label: '案件管理' },
   { to: '/search', icon: Search, label: '搜尋' },
   { to: '/favorites', icon: Bookmark, label: '書籤' },
+  { to: '/history', icon: Clock, label: '紀錄' },
 ];
 
 export default function Layout() {
@@ -50,7 +52,7 @@ export default function Layout() {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+
               onClick={() => setMobileSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${

@@ -4,7 +4,17 @@
 
 ## 更新紀錄
 
-### 2026-04-06
+### 2026-04-06 (v2 - 功能遷移)
+- 新增 AI 問答聊天頁面 `/chat`、`/chat/:id`（含法學資料引用、延伸問題、代理模式）
+- 新增案件管理頁面 `/project`、`/project/:id`（CRUD、搜尋）
+- 新增法律條文瀏覽頁面 `/law/:lawId`（目錄樹、條文內容、AI助手面板）
+- 新增聊天紀錄頁面 `/history`（卡片式、搜尋、批量選取刪除）
+- 升級精準搜尋：文件類型篩選、關鍵字高亮、裁判標籤 badge、搜尋歷史
+- 升級書籤收藏：搜尋範圍篩選、搜尋按鈕、標題改為「我的書籤」
+- 更新側邊欄導覽對齊 lawbot.tw（AI問答、案件管理、精準搜尋、書籤內容、聊天紀錄）
+- 常用法律連結改為導向法律條文頁面 `/law/:id`
+
+### 2026-04-06 (v1 - Bug 修復)
 - 修復 React error #185（Maximum update depth exceeded）導致 /search、/favorites 頁面崩潰
   - `src/stores/favorites.ts`: 為 `useSyncExternalStore` 的 `getSnapshot` 加入快取機制，避免每次回傳新陣列參考導致無限重渲染
   - `src/pages/SearchPage.tsx`: 為搜尋歷史的 `getHistorySnapshot` 加入同樣的快取機制

@@ -30,9 +30,15 @@ function AnimatedNumber({ value, duration = 1500 }: { value: number; duration?: 
 }
 
 const quickLinks = [
-  '民法', '刑法', '民事訴訟法', '刑事訴訟法',
-  '憲法', '公司法', '勞動基準法',
-  '消費者保護法', '家事事件法',
+  { name: '民法', lawId: 'B0000001' },
+  { name: '刑法', lawId: 'C0000001' },
+  { name: '民事訴訟法', lawId: 'B0010001' },
+  { name: '刑事訴訟法', lawId: 'C0010001' },
+  { name: '憲法', lawId: 'A0000001' },
+  { name: '公司法', lawId: 'J0080001' },
+  { name: '勞動基準法', lawId: 'N0030001' },
+  { name: '消費者保護法', lawId: 'J0170001' },
+  { name: '家事事件法', lawId: 'B0010048' },
 ];
 
 const features = [
@@ -162,11 +168,11 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-2">
           {quickLinks.map((law) => (
             <Link
-              key={law}
-              to={`/search?q=${encodeURIComponent(law)}`}
+              key={law.lawId}
+              to={`/law/${law.lawId}`}
               className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-primary-100 hover:text-primary-700 dark:hover:bg-primary-900/30 dark:hover:text-primary-300 transition-colors text-sm font-medium"
             >
-              {law}
+              {law.name}
             </Link>
           ))}
         </div>

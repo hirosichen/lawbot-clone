@@ -8,8 +8,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  Filter,
+  ChevronDown,
 } from 'lucide-react';
-import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useCallback, useSyncExternalStore, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { getCourtName } from '../utils/court';
@@ -88,6 +90,30 @@ function buildRulingTitle(r: Ruling | SemanticResult): string {
   return `${court} ${r.jyear}年度${r.jcase}字第${r.jno}號`;
 }
 
+// --------------- HighlightText Component ---------------
+
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query || !text) return <>{text}</>;
+
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escapedQuery})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 // --------------- Components ---------------
 
 function SkeletonCard() {
@@ -106,11 +132,13 @@ function ResultCard({
   isSemantic,
   onToggleFavorite,
   isFav,
+  highlightQuery,
 }: {
   ruling: Ruling | SemanticResult;
   isSemantic: boolean;
   onToggleFavorite: () => void;
   isFav: boolean;
+  highlightQuery: string;
 }) {
   const navigate = useNavigate();
   const semantic = isSemantic ? (ruling as SemanticResult) : null;
@@ -123,9 +151,14 @@ function ResultCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-primary-700 dark:text-primary-400 group-hover:underline truncate">
-            {buildRulingTitle(ruling)}
-          </h3>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0">
+              裁判
+            </span>
+            <h3 className="text-sm font-semibold text-primary-700 dark:text-primary-400 group-hover:underline truncate">
+              <HighlightText text={buildRulingTitle(ruling)} query={highlightQuery} />
+            </h3>
+          </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {formatDate(ruling.jdate)}
             {semantic && (
@@ -156,7 +189,7 @@ function ResultCard({
         </button>
       </div>
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-        {truncate(summary, 200)}
+        <HighlightText text={truncate(summary, 200)} query={highlightQuery} />
       </p>
     </div>
   );
@@ -165,6 +198,7 @@ function ResultCard({
 // --------------- Main Page ---------------
 
 type SearchMode = 'keyword' | 'semantic';
+type DocType = '全部' | '裁判' | '法條';
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -176,11 +210,17 @@ export default function SearchPage() {
   const urlSort = searchParams.get('sort') || 'relevance';
   const urlDateFrom = searchParams.get('date_from') || '';
   const urlDateTo = searchParams.get('date_to') || '';
+  const urlType = (searchParams.get('type') as DocType) || '全部';
 
   // Only the text input needs local state (for typing before submit)
   const [query, setQuery] = useState(urlQuery);
   const [showFilters, setShowFilters] = useState(false);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [semanticFirstLoad, setSemanticFirstLoad] = useState(true);
+
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+  const historyBtnRef = useRef<HTMLDivElement>(null);
 
   const { history, addHistory, clearHistory } = useSearchHistory();
   const { addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -190,11 +230,26 @@ export default function SearchPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setShowTypeDropdown(false);
+      }
+      if (historyBtnRef.current && !historyBtnRef.current.contains(e.target as Node)) {
+        setShowHistory(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Derived from URL
   const mode = urlMode;
   const sort = urlSort;
   const dateFrom = urlDateFrom;
   const dateTo = urlDateTo;
+  const docType = urlType;
 
   const LIMIT = 20;
 
@@ -215,6 +270,8 @@ export default function SearchPage() {
         if (df) params.date_from = df;
         const dt = overrides.date_to ?? prev.get('date_to') ?? '';
         if (dt) params.date_to = dt;
+        const t = overrides.type ?? prev.get('type') ?? '全部';
+        if (t !== '全部') params.type = t;
         return params;
       }, { replace: false });
     },
@@ -223,7 +280,7 @@ export default function SearchPage() {
 
   // Keyword search query
   const keywordQuery = useQuery<SearchResponse>({
-    queryKey: ['search', 'keyword', urlQuery, urlPage, urlSort, urlDateFrom, urlDateTo],
+    queryKey: ['search', 'keyword', urlQuery, urlPage, urlSort, urlDateFrom, urlDateTo, urlType],
     queryFn: async () => {
       const { data } = await api.search({
         q: urlQuery,
@@ -232,6 +289,7 @@ export default function SearchPage() {
         ...(urlSort === 'date' ? { mode: 'date' } : {}),
         ...(urlDateFrom ? { date_from: urlDateFrom } : {}),
         ...(urlDateTo ? { date_to: urlDateTo } : {}),
+        ...(urlType !== '全部' ? { type: urlType } : {}),
       });
       return data;
     },
@@ -286,11 +344,17 @@ export default function SearchPage() {
     setQuery(q);
     addHistory(q);
     updateUrl({ q, page: '1' });
+    setShowHistory(false);
   };
 
   const handlePageChange = (newPage: number) => {
     updateUrl({ page: String(newPage) });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleTypeChange = (type: DocType) => {
+    updateUrl({ type, page: '1' });
+    setShowTypeDropdown(false);
   };
 
   const toggleFavorite = (r: Ruling | SemanticResult) => {
@@ -306,6 +370,8 @@ export default function SearchPage() {
       });
     }
   };
+
+  const docTypes: DocType[] = ['全部', '裁判', '法條'];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -336,15 +402,97 @@ export default function SearchPage() {
       {/* Search Form */}
       <form onSubmit={handleSearch} className="mb-4">
         {mode === 'keyword' ? (
-          <div className="relative">
-            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜尋判決書..."
-              className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="搜尋判決書..."
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Document Type Filter */}
+            <div ref={typeDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowTypeDropdown(!showTypeDropdown)}
+                className={`flex items-center gap-1.5 px-3 py-3 rounded-xl border text-sm font-medium transition-colors ${
+                  docType !== '全部'
+                    ? 'border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
+                    : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Filter size={16} />
+                <span className="hidden sm:inline">{docType === '全部' ? '文件類型' : docType}</span>
+                <ChevronDown size={14} />
+              </button>
+              {showTypeDropdown && (
+                <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 py-1">
+                  {docTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleTypeChange(type)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                        docType === type
+                          ? 'text-primary-600 dark:text-primary-400 font-medium'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Search History Toggle */}
+            <div ref={historyBtnRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowHistory(!showHistory)}
+                className={`flex items-center px-3 py-3 rounded-xl border text-sm transition-colors ${
+                  showHistory
+                    ? 'border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
+                    : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+                title="搜尋紀錄"
+              >
+                <Clock size={16} />
+              </button>
+              {showHistory && history.length > 0 && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 py-1">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">最近搜尋</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearHistory();
+                      }}
+                      className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-1"
+                    >
+                      <Trash2 size={10} />
+                      清除
+                    </button>
+                  </div>
+                  {history.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => handleHistoryClick(h)}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                    >
+                      <Clock size={12} className="text-gray-400 shrink-0" />
+                      <span className="truncate">{h}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="relative">
@@ -413,8 +561,8 @@ export default function SearchPage() {
         )}
       </form>
 
-      {/* Search History (shown when no active query) */}
-      {!urlQuery && history.length > 0 && (
+      {/* Search History (shown when no active query and no dropdown history) */}
+      {!urlQuery && !showHistory && history.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
@@ -474,6 +622,9 @@ export default function SearchPage() {
             <>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 共 {total.toLocaleString()} 筆結果
+                {docType !== '全部' && (
+                  <span className="ml-1">（{docType}）</span>
+                )}
                 {urlMode === 'keyword' && totalPages > 1 && (
                   <span>，第 {urlPage} / {totalPages} 頁</span>
                 )}
@@ -486,6 +637,7 @@ export default function SearchPage() {
                     isSemantic={urlMode === 'semantic'}
                     isFav={isFavorite(r.jid)}
                     onToggleFavorite={() => toggleFavorite(r)}
+                    highlightQuery={urlQuery}
                   />
                 ))}
               </div>

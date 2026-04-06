@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Bookmark, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react';
+import { MessageSquare, FolderOpen, Search, Bookmark, Clock, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 
 const navItems = [
-  { to: '/', icon: Home, label: '首頁' },
+  { to: '/chat', icon: MessageSquare, label: 'AI 問答' },
+  { to: '/project', icon: FolderOpen, label: '案件管理' },
   { to: '/search', icon: Search, label: '精準搜尋' },
-  { to: '/favorites', icon: Bookmark, label: '書籤收藏' },
+  { to: '/favorites', icon: Bookmark, label: '書籤內容' },
+  { to: '/history', icon: Clock, label: '聊天紀錄' },
 ];
 
 interface SidebarProps {
@@ -23,7 +25,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-4 h-14 border-b border-gray-200 dark:border-gray-800">
+      <NavLink to="/" className="flex items-center gap-2 px-4 h-14 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
           L
         </div>
@@ -32,7 +34,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             LawSearch AI
           </span>
         )}
-      </div>
+      </NavLink>
 
       {/* Nav */}
       <nav className="flex-1 py-2">
@@ -40,7 +42,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors ${
                 isActive

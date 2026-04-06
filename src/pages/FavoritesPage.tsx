@@ -5,10 +5,13 @@ import { useFavorites } from '../stores/favorites';
 
 const DEFAULT_FOLDER = '我的最愛';
 
+type SearchScope = 'current' | 'all';
+
 export default function FavoritesPage() {
   const { favorites, removeFavorite, moveTo } = useFavorites();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<SearchScope>('current');
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
@@ -29,9 +32,14 @@ export default function FavoritesPage() {
 
   const filtered = useMemo(() => {
     let list = favorites;
-    if (selectedFolder) {
+
+    // Apply folder filter: only when scope is 'current' and a folder is selected
+    if (selectedFolder && searchScope === 'current') {
       list = list.filter((f) => f.folder === selectedFolder);
     }
+    // When scope is 'current' and no folder selected, show all (same as before)
+    // When scope is 'all', skip folder filtering entirely
+
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       list = list.filter(
@@ -42,7 +50,7 @@ export default function FavoritesPage() {
       );
     }
     return list;
-  }, [favorites, selectedFolder, searchQuery]);
+  }, [favorites, selectedFolder, searchQuery, searchScope]);
 
   const handleAddFolder = () => {
     if (newFolderName.trim() && !folders.includes(newFolderName.trim())) {
@@ -58,12 +66,27 @@ export default function FavoritesPage() {
     setMoveTarget(null);
   };
 
+  const handleSearch = () => {
+    // Search is already reactive via the filtered memo,
+    // this handler is for the explicit search button click
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-1">
         <Bookmark size={24} className="text-primary-600" />
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">書籤收藏</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">我的書籤</h1>
       </div>
+      {selectedFolder && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 ml-9">
+          顯示 {selectedFolder} 中的書籤項目
+        </p>
+      )}
+      {!selectedFolder && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 ml-9">
+          顯示所有書籤項目
+        </p>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Left Panel - Folders */}
@@ -131,15 +154,32 @@ export default function FavoritesPage() {
         {/* Right Panel - Bookmark List */}
         <div className="flex-1 min-w-0">
           {/* Search */}
-          <div className="relative mb-4">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋書籤..."
-              className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-            />
+          <div className="flex gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="搜尋書籤..."
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              />
+            </div>
+            <select
+              value={searchScope}
+              onChange={(e) => setSearchScope(e.target.value as SearchScope)}
+              className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 shrink-0"
+            >
+              <option value="current">僅當前資料夾</option>
+              <option value="all">全部資料夾</option>
+            </select>
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors shrink-0"
+            >
+              搜尋
+            </button>
           </div>
 
           {filtered.length === 0 ? (
